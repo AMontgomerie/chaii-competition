@@ -1,5 +1,7 @@
+import argparse
 import pandas as pd
 import numpy as np
+import os
 from datasets import Dataset
 from transformers import (
     AutoTokenizer,
@@ -10,19 +12,26 @@ from transformers import (
 )
 from tqdm.auto import tqdm
 import collections
-from dataclasses import dataclass
 
 
-@dataclass
-class Config():
-    checkpoint = '../input/xlm-roberta-squad2/deepset/xlm-roberta-large-squad2'
-    finetuned_checkpoint = "chaii-xlmroberta-trained"
-    train_batch_size = 4
-    test_batch_size = 32
-    max_length = 384
-    doc_stride = 128
-    max_answer_length = 30
-    epochs = 1
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--accumulation_steps", type=int, default=8, required=False)
+    parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
+    parser.add_argument("--doc_stride", type=int, default=128, required=False)
+    parser.add_argument("--epochs", type=int, default=1, required=False)
+    parser.add_argument("--fold", type=int, required=True)
+    parser.add_argument("--learning_rate", type=float, default=3e-5, required=False)
+    parser.add_argument("--max_answer_length", type=int, default=30, required=False)
+    parser.add_argument("--max_length", type=int, default=384, required=False)
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--save_path", type=str, default="output", required=False)
+    parser.add_argument("--seed", type=int, default=0, required=False)
+    parser.add_argument("--test_batch_size", type=int, default=32, required=False)
+    parser.add_argument("--train_batch_size", type=int, default=4, required=False)
+    parser.add_argument("--warmup", type=float, default=0.1, required=False)
+    parser.add_argument("--weight_decay", type=float, default=0.1, required=False)
+    return parser.parse_args()
 
 
 def prepare_train_features(examples, pad_on_right=True):
@@ -191,12 +200,17 @@ def jaccard(row):
 
 
 if __name__ == "__main__":
-    config = Config()
-    tokenizer = AutoTokenizer.from_pretrained(config.checkpoint)
+    config = parse_args()
+    tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
-    train = pd.read_csv("../input/chaii-hindi-and-tamil-question-answering/train.csv")
-    train = train.sample(frac=1, random_state=42)
-    train['answers'] = train[['answer_start', 'answer_text']].apply(convert_answers, axis=1)
+    data = pd.read_csv(config.data_path)
+    train = data[data.kfold != config.fold]
+    valid = data[data.kfold == config.fold]
+    train = train.sample(frac=1, random_state=config.seed)
+    train['answers'] = train[['answer_start', 'answer_text']].apply(
+        convert_answers,
+        axis=1
+    )
     df_train = train[:-64].reset_index(drop=True)
     df_valid = train[-64:].reset_index(drop=True)
     train_dataset = Dataset.from_pandas(df_train)
@@ -213,18 +227,18 @@ if __name__ == "__main__":
         remove_columns=train_dataset.column_names,
         pad_on_right=pad_on_right
     )
-    model = AutoModelForQuestionAnswering.from_pretrained(config.checkpoint)
+    model = AutoModelForQuestionAnswering.from_pretrained(config.model)
     args = TrainingArguments(
         f"chaii-qa",
         evaluation_strategy="epoch",
         save_strategy="epoch",
-        learning_rate=3e-5,
-        warmup_ratio=0.1,
-        gradient_accumulation_steps=8,
+        learning_rate=config.learning_rate,
+        warmup_ratio=config.warmup,
+        gradient_accumulation_steps=config.accumulation_steps,
         per_device_train_batch_size=config.train_batch_size,
         per_device_eval_batch_size=config.test_batch_size,
-        num_train_epochs=1,
-        weight_decay=0.01,
+        num_train_epochs=config.epochs,
+        weight_decay=config.weight_decay,
     )
     data_collator = default_data_collator
     trainer = Trainer(
@@ -236,4 +250,8 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
     )
     trainer.train()
-    trainer.save_model(config.finetuned_checkpoint)
+    output_path = os.path.join(
+        config.save_path,
+        f"{config.model.replace('/', '-')}_fold_{config.fold}.bin"
+    )
+    trainer.save_model()
