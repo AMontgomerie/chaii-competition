@@ -181,15 +181,19 @@ if __name__ == "__main__":
         prepare_train_features,
         batched=True,
         remove_columns=train_dataset.column_names,
-        tokenizer=tokenizer,
-        config=config,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "config": config
+        },
         pad_on_right=pad_on_right,
     )
     tokenized_valid_ds = valid_dataset.map(
         prepare_validation_features,
         batched=True,
-        tokenizer=tokenizer,
-        config=config,
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "config": config
+        },
         remove_columns=train_dataset.column_names,
         pad_on_right=pad_on_right
     )
