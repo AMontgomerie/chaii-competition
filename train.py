@@ -34,12 +34,13 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=1, required=False)
     parser.add_argument("--fold", type=int, required=True)
     parser.add_argument("--learning_rate", type=float, default=3e-5, required=False)
+    parser.add_argument("--logs_per_epoch", type=int, default=10, required=False)
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)
     parser.add_argument("--max_length", type=int, default=384, required=False)
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--save_path", type=str, default="output", required=False)
     parser.add_argument("--seed", type=int, default=0, required=False)
-    parser.add_argument("--test_batch_size", type=int, default=32, required=False)
+    parser.add_argument("--valid_batch_size", type=int, default=32, required=False)
     parser.add_argument("--train_batch_size", type=int, default=4, required=False)
     parser.add_argument("--warmup", type=float, default=0.1, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.1, required=False)
@@ -50,6 +51,7 @@ class Trainer:
     def __init__(
         self,
         model_name: str,
+        fold: int,
         train_set: Dataset,
         valid_set: Dataset,
         tokenizer: AutoTokenizer,
@@ -58,10 +60,14 @@ class Trainer:
         epochs: int = 1,
         train_batch_size: int = 4,
         valid_batch_size: int = 32,
-        logs_per_epoch: int = 10
+        logs_per_epoch: int = 10,
+        max_length: int = 384,
+        doc_stride: int = 128,
+        save_path: str = "output",
     ) -> None:
         self.model = AutoModelForQuestionAnswering.from_pretrained(model_name)
         self.model.to("cuda")
+        self.fold = fold
         self.train_set = train_set
         self.valid_set = valid_set
         self.tokenizer = tokenizer
@@ -76,6 +82,9 @@ class Trainer:
             lr=config.learning_rate,
             weight_decay=config.weight_decay
         )
+        self.max_length = max_length
+        self.doc_stride = doc_stride
+        self.save_path = save_path
 
     def train(self) -> None:
         self.model.train()
@@ -104,10 +113,30 @@ class Trainer:
 
             valid_jaccard = self.evaluate()
             print(f"End of epoch {epoch} | Validation Jaccard {valid_jaccard}")
+        
+        model.save_pretrained(self.save_dir)
 
     def evaluate(self) -> float:
-        predictions = self.predict(self.valid_set)
-        return self._calculate_validation_jaccard(predictions)
+        valid_features = self.valid_set.map(
+            prepare_validation_features, 
+            fn_kwargs={
+                "tokenizer": tokenizer,
+                "pad_on_right": pad_on_right, 
+                "max_length": self.max_length,
+                "doc_stride": self.doc_stride
+            },
+            batched=True,
+            remove_columns=self.valid_set.column_names
+        )
+        valid_features_small = valid_features.map(
+            lambda example: example, remove_columns=['example_id', 'offset_mapping']
+        )
+        valid_features_small.set_format(
+            type='torch',
+            columns=["input_ids", "attention_mask"]
+        )
+        predictions = self.predict(valid_features_small)
+        return self._calculate_validation_jaccard(self.valid_set, valid_features, predictions)
 
     @torch.no_grad()
     def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
@@ -128,21 +157,18 @@ class Trainer:
 
     def _calculate_validation_jaccard(
         self,
+        dataset: Dataset,
+        features: Dataset,
         raw_predictions: Tuple[np.ndarray, np.ndarray]
     ) -> float:
-        validation_features = valid_dataset.map(
-            prepare_validation_features,
-            batched=True,
-            remove_columns=valid_dataset.column_names
-        )
-        example_id_to_index = {k: i for i, k in enumerate(valid_dataset["id"])}
+        example_id_to_index = {k: i for i, k in enumerate(dataset["id"])}
         features_per_example = collections.defaultdict(list)
-        for i, feature in enumerate(validation_features):
+        for i, feature in enumerate(features):
             features_per_example[example_id_to_index[feature["example_id"]]].append(i)
 
         final_predictions = postprocess_qa_predictions(
-            valid_dataset,
-            validation_features,
+            dataset,
+            features,
             raw_predictions,
             self.tokenizer,
             config.max_answer_length
@@ -170,7 +196,6 @@ if __name__ == "__main__":
     data = pd.read_csv(config.data_path, encoding="utf-8")
     train = data[data.kfold != config.fold].reset_index()
     valid = data[data.kfold == config.fold].reset_index()
-    train = train.sample(frac=1, random_state=config.seed)
     train['answers'] = train[['answer_start', 'answer_text']].apply(
         convert_answers,
         axis=1
@@ -192,29 +217,25 @@ if __name__ == "__main__":
             "pad_on_right": pad_on_right
         }
     )
-    tokenized_valid_ds = valid_dataset.map(
-        prepare_validation_features,
-        batched=True,
-        remove_columns=valid_dataset.column_names,
-        fn_kwargs={
-            "tokenizer": tokenizer,
-            "max_length": config.max_length,
-            "doc_stride": config.doc_stride,
-            "pad_on_right": pad_on_right
-        }
-    )
+    
     tokenized_train_ds.set_format(
         type='torch',
         columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
     )
-    tokenized_valid_ds.set_format(
-        type='torch',
-        columns=['attention_mask', 'example_id', 'input_ids', 'offset_mapping']
-    )
     trainer = Trainer(
         config.model,
+        config.fold,
         tokenized_train_ds,
-        tokenized_valid_ds,
-        tokenizer
+        valid_dataset,
+        tokenizer,
+        learning_rate=config.learning_rate,
+        weight_decay=config.weight_decay,
+        epochs=config.epochs,
+        train_batch_size=config.train_batch_size,
+        valid_batch_size=config.valid_batch_size,
+        logs_per_epoch=config.logs_per_epoch,
+        max_length=config.max_length,
+        doc_stride=config.doc_stride,
+        save_path=config.save_path
     )
     trainer.train()
