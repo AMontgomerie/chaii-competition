@@ -12,9 +12,10 @@ set_verbosity_error()
 
 
 def prepare_train_features(
-    examples: pd.DataFrame,
+    examples: Dataset,
     tokenizer: AutoTokenizer,
-    config: Namespace,
+    max_length: int = 384,
+    doc_stride: int = 128,
     pad_on_right: bool = True
 ):
     examples["question"] = [q.lstrip() for q in examples["question"]]
@@ -22,8 +23,8 @@ def prepare_train_features(
         examples["question" if pad_on_right else "context"],
         examples["context" if pad_on_right else "question"],
         truncation="only_second" if pad_on_right else "only_first",
-        max_length=config.max_length,
-        stride=config.doc_stride,
+        max_length=max_length,
+        stride=doc_stride,
         return_overflowing_tokens=True,
         return_offsets_mapping=True,
         padding="max_length",
@@ -69,9 +70,10 @@ def prepare_train_features(
 
 
 def prepare_validation_features(
-    examples: pd.DataFrame,
+    examples: Dataset,
     tokenizer: AutoTokenizer,
-    config: Namespace,
+    max_length: int = 384,
+    doc_stride: int = 128,
     pad_on_right: bool = True
 ):
     examples["question"] = [q.lstrip() for q in examples["question"]]
@@ -79,8 +81,8 @@ def prepare_validation_features(
         examples["question" if pad_on_right else "context"],
         examples["context" if pad_on_right else "question"],
         truncation="only_second" if pad_on_right else "only_first",
-        max_length=config.max_length,
-        stride=config.doc_stride,
+        max_length=max_length,
+        stride=doc_stride,
         return_overflowing_tokens=True,
         return_offsets_mapping=True,
         padding="max_length",

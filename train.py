@@ -167,11 +167,15 @@ if __name__ == "__main__":
     seed_everything(config.seed)
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
-    data = pd.read_csv(config.data_path)
-    train = data[data.kfold != config.fold]
-    valid = data[data.kfold == config.fold]
+    data = pd.read_csv(config.data_path, encoding="utf-8")
+    train = data[data.kfold != config.fold].reset_index()
+    valid = data[data.kfold == config.fold].reset_index()
     train = train.sample(frac=1, random_state=config.seed)
     train['answers'] = train[['answer_start', 'answer_text']].apply(
+        convert_answers,
+        axis=1
+    )
+    valid['answers'] = valid[['answer_start', 'answer_text']].apply(
         convert_answers,
         axis=1
     )
@@ -183,16 +187,19 @@ if __name__ == "__main__":
         remove_columns=train_dataset.column_names,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "config": config,
+            "max_length": config.max_length,
+            "doc_stride": config.doc_stride,
             "pad_on_right": pad_on_right
         }
     )
     tokenized_valid_ds = valid_dataset.map(
         prepare_validation_features,
         batched=True,
+        remove_columns=valid_dataset.column_names,
         fn_kwargs={
             "tokenizer": tokenizer,
-            "config": config,
+            "max_length": config.max_length,
+            "doc_stride": config.doc_stride,
             "pad_on_right": pad_on_right
         }
     )
@@ -202,10 +209,10 @@ if __name__ == "__main__":
     )
     tokenized_valid_ds.set_format(
         type='torch',
-        columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
+        columns=['attention_mask', 'example_id', 'input_ids', 'offset_mapping']
     )
     trainer = Trainer(
-        config.checkpoint,
+        config.model,
         tokenized_train_ds,
         tokenized_valid_ds,
         tokenizer
