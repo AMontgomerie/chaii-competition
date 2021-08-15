@@ -190,7 +190,7 @@ if __name__ == "__main__":
     tokenized_valid_ds = valid_dataset.map(
         prepare_validation_features,
         batched=True,
-        remove_columns=train_dataset.column_names,
+        remove_columns=valid_dataset.column_names,
         fn_kwargs={
             "tokenizer": tokenizer,
             "config": config,
