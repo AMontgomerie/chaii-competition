@@ -1,5 +1,4 @@
 import argparse
-from train import seed_everything
 import pandas as pd
 import numpy as np
 from datasets import Dataset
