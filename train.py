@@ -14,7 +14,7 @@ import collections
 from typing import Tuple
 from datasets.utils.logging import set_verbosity_error
 
-from utils import AverageMeter, jaccard, parse_args, seed_everything
+from utils import AverageMeter, jaccard, seed_everything
 from preprocessing import (
     convert_answers,
     prepare_train_features,
