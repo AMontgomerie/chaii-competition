@@ -93,6 +93,7 @@ class Trainer:
             batch_size=self.train_batch_size,
             shuffle=True
         )
+        best_jaccard = 0
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
 
@@ -114,7 +115,10 @@ class Trainer:
             valid_jaccard = self.evaluate()
             print(f"End of epoch {epoch} | Validation Jaccard {valid_jaccard}")
         
-        model.save_pretrained(self.save_dir)
+            if valid_jaccard > best_jaccard:
+                print("Saving model.")
+                best_jaccard = valid_jaccard
+                self.model.save_pretrained(self.save_dir)
 
     def evaluate(self) -> float:
         valid_features = self.valid_set.map(
