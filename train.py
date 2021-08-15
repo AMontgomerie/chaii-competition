@@ -1,17 +1,30 @@
 import argparse
+from train import seed_everything
 import pandas as pd
 import numpy as np
-import os
 from datasets import Dataset
+import torch
+from torch.utils.data import DataLoader
 from transformers import (
+    AdamW,
     AutoTokenizer,
-    AutoModelForQuestionAnswering,
-    TrainingArguments,
-    Trainer,
-    default_data_collator
+    AutoModelForQuestionAnswering
 )
-from tqdm.auto import tqdm
+from tqdm import tqdm
 import collections
+from typing import Tuple
+from datasets.utils.logging import set_verbosity_error
+
+from utils import AverageMeter, jaccard, parse_args, seed_everything
+from preprocessing import (
+    convert_answers,
+    prepare_train_features,
+    prepare_validation_features,
+    postprocess_qa_predictions,
+    convert_answers
+)
+
+set_verbosity_error()
 
 
 def parse_args():
@@ -34,173 +47,125 @@ def parse_args():
     return parser.parse_args()
 
 
-def prepare_train_features(examples, pad_on_right=True):
-    examples["question"] = [q.lstrip() for q in examples["question"]]
-    tokenized_examples = tokenizer(
-        examples["question" if pad_on_right else "context"],
-        examples["context" if pad_on_right else "question"],
-        truncation="only_second" if pad_on_right else "only_first",
-        max_length=config.max_length,
-        stride=config.doc_stride,
-        return_overflowing_tokens=True,
-        return_offsets_mapping=True,
-        padding="max_length",
-    )
-    sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
-    offset_mapping = tokenized_examples.pop("offset_mapping")
-    tokenized_examples["start_positions"] = []
-    tokenized_examples["end_positions"] = []
+class Trainer:
+    def __init__(
+        self,
+        model_name: str,
+        train_set: Dataset,
+        valid_set: Dataset,
+        tokenizer: AutoTokenizer,
+        learning_rate: float = 3e-5,
+        weight_decay: float = 0.1,
+        epochs: int = 1,
+        train_batch_size: int = 4,
+        valid_batch_size: int = 32,
+        logs_per_epoch: int = 10
+    ) -> None:
+        self.model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+        self.model.to("cuda")
+        self.train_set = train_set
+        self.valid_set = valid_set
+        self.tokenizer = tokenizer
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.epochs = epochs
+        self.train_batch_size = train_batch_size
+        self.valid_batch_size = valid_batch_size
+        self.logs_per_epoch = logs_per_epoch
+        self.optimizer = AdamW(
+            self.model.parameters(),
+            lr=config.learning_rate,
+            weight_decay=config.weight_decay
+        )
 
-    for i, offsets in enumerate(offset_mapping):
-        input_ids = tokenized_examples["input_ids"][i]
-        cls_index = input_ids.index(tokenizer.cls_token_id)
-        sequence_ids = tokenized_examples.sequence_ids(i)
-        sample_index = sample_mapping[i]
-        answers = examples["answers"][sample_index]
+    def train(self) -> None:
+        self.model.train()
+        dataloader = DataLoader(
+            self.train_set,
+            batch_size=self.train_batch_size,
+            shuffle=True
+        )
+        for epoch in range(1, self.epochs + 1):
+            loss_score = AverageMeter()
 
-        if len(answers["answer_start"]) == 0:
-            tokenized_examples["start_positions"].append(cls_index)
-            tokenized_examples["end_positions"].append(cls_index)
-        else:
-            start_char = answers["answer_start"][0]
-            end_char = start_char + len(answers["text"][0])
-            token_start_index = 0
-            while sequence_ids[token_start_index] != (1 if pad_on_right else 0):
-                token_start_index += 1
-            token_end_index = len(input_ids) - 1
-            while sequence_ids[token_end_index] != (1 if pad_on_right else 0):
-                token_end_index -= 1
-            if not(
-                    offsets[token_start_index][0] <= start_char and offsets[token_end_index][1] >=
-                    end_char):
-                tokenized_examples["start_positions"].append(cls_index)
-                tokenized_examples["end_positions"].append(cls_index)
-            else:
-                while token_start_index < len(offsets) and offsets[token_start_index][0] <= start_char:
-                    token_start_index += 1
-                tokenized_examples["start_positions"].append(token_start_index - 1)
-                while offsets[token_end_index][1] >= end_char:
-                    token_end_index -= 1
-                tokenized_examples["end_positions"].append(token_end_index + 1)
+            with tqdm(total=len(dataloader), unit="batches") as tepoch:
+                tepoch.set_description(f"epoch {epoch}")
 
-    return tokenized_examples
+                for batch in dataloader:
+                    batch = self._to_device(batch)
+                    output = self.model(**batch)
+                    loss = output.loss
+                    loss.backward()
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    # scheduler.step()
+                    loss_score.update(loss.detach().item(), self.train_batch_size)
+                    tepoch.set_postfix(loss=loss_score.avg)
+                    tepoch.update(1)
 
+            valid_jaccard = self.evaluate()
+            print(f"End of epoch {epoch} | Validation Jaccard {valid_jaccard}")
 
-def prepare_validation_features(examples, pad_on_right=True):
-    examples["question"] = [q.lstrip() for q in examples["question"]]
-    tokenized_examples = tokenizer(
-        examples["question" if pad_on_right else "context"],
-        examples["context" if pad_on_right else "question"],
-        truncation="only_second" if pad_on_right else "only_first",
-        max_length=config.max_length,
-        stride=config.doc_stride,
-        return_overflowing_tokens=True,
-        return_offsets_mapping=True,
-        padding="max_length",
-    )
-    sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
-    tokenized_examples["example_id"] = []
+    def evaluate(self) -> float:
+        predictions = self.predict(self.valid_set)
+        return self._calculate_validation_jaccard(predictions)
 
-    for i in range(len(tokenized_examples["input_ids"])):
-        sequence_ids = tokenized_examples.sequence_ids(i)
-        context_index = 1 if pad_on_right else 0
-        sample_index = sample_mapping[i]
-        tokenized_examples["example_id"].append(examples["id"][sample_index])
-        tokenized_examples["offset_mapping"][i] = [
-            (o if sequence_ids[k] == context_index else None)
-            for k, o in enumerate(tokenized_examples["offset_mapping"][i])
+    @torch.no_grad()
+    def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
+        self.model.eval()
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.valid_batch_size,
+            shuffle=False
+        )
+        start_logits = []
+        end_logits = []
+        for batch in dataloader:
+            batch = self._to_device(batch)
+            output = self.model(**batch)
+            start_logits.append(output.start_logits.cpu().numpy())
+            end_logits.append(output.end_logits.cpu().numpy())
+        return np.vstack(start_logits), np.vstack(end_logits)
+
+    def _calculate_validation_jaccard(
+        self,
+        raw_predictions: Tuple[np.ndarray, np.ndarray]
+    ) -> float:
+        validation_features = valid_dataset.map(
+            prepare_validation_features,
+            batched=True,
+            remove_columns=valid_dataset.column_names
+        )
+        example_id_to_index = {k: i for i, k in enumerate(valid_dataset["id"])}
+        features_per_example = collections.defaultdict(list)
+        for i, feature in enumerate(validation_features):
+            features_per_example[example_id_to_index[feature["example_id"]]].append(i)
+
+        final_predictions = postprocess_qa_predictions(
+            valid_dataset,
+            validation_features,
+            raw_predictions,
+            self.tokenizer,
+            config.max_answer_length
+        )
+        references = [
+            {"id": ex["id"], "answer": ex["answers"]['text'][0]}
+            for ex in valid_dataset
         ]
+        res = pd.DataFrame(references)
+        res['prediction'] = res['id'].apply(lambda r: final_predictions[r])
+        res['jaccard'] = res[['answer', 'prediction']].apply(jaccard, axis=1)
+        return res.jaccard.mean()
 
-    return tokenized_examples
-
-
-def postprocess_qa_predictions(
-    examples,
-    features,
-    raw_predictions,
-    n_best_size=20,
-    max_answer_length=30
-):
-    all_start_logits, all_end_logits = raw_predictions
-    example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
-    features_per_example = collections.defaultdict(list)
-
-    for i, feature in enumerate(features):
-        features_per_example[example_id_to_index[feature["example_id"]]].append(i)
-
-    predictions = collections.OrderedDict()
-    print(
-        f"Post-processing {len(examples)} example predictions split into {len(features)} features.")
-
-    for example_index, example in enumerate(tqdm(examples)):
-        feature_indices = features_per_example[example_index]
-
-        min_null_score = None  # Only used if squad_v2 is True.
-        valid_answers = []
-        context = example["context"]
-
-        for feature_index in feature_indices:
-            start_logits = all_start_logits[feature_index]
-            end_logits = all_end_logits[feature_index]
-            offset_mapping = features[feature_index]["offset_mapping"]
-            cls_index = features[feature_index]["input_ids"].index(tokenizer.cls_token_id)
-            feature_null_score = start_logits[cls_index] + end_logits[cls_index]
-
-            if min_null_score is None or min_null_score < feature_null_score:
-                min_null_score = feature_null_score
-
-            start_indexes = np.argsort(start_logits)[-1: -n_best_size - 1: -1].tolist()
-            end_indexes = np.argsort(end_logits)[-1: -n_best_size - 1: -1].tolist()
-
-            for start_index in start_indexes:
-                for end_index in end_indexes:
-                    if (
-                        start_index >= len(offset_mapping)
-                        or end_index >= len(offset_mapping)
-                        or offset_mapping[start_index] is None
-                        or offset_mapping[end_index] is None
-                    ):
-                        continue
-                    if end_index < start_index or end_index - start_index + 1 > max_answer_length:
-                        continue
-                    start_char = offset_mapping[start_index][0]
-                    end_char = offset_mapping[end_index][1]
-                    valid_answers.append(
-                        {
-                            "score": start_logits[start_index] + end_logits[end_index],
-                            "text": context[start_char: end_char]
-                        }
-                    )
-
-        if len(valid_answers) > 0:
-            best_answer = sorted(valid_answers, key=lambda x: x["score"], reverse=True)[0]
-        else:
-            best_answer = {"text": "", "score": 0.0}
-        predictions[example["id"]] = best_answer["text"]
-
-    return predictions
-
-
-def convert_answers(r):
-    start = r[0]
-    text = r[1]
-    return {
-        'answer_start': [start],
-        'text': [text]
-    }
-
-
-def jaccard(row):
-    str1 = row[0]
-    str2 = row[1]
-    a = set(str1.lower().split())
-    b = set(str2.lower().split())
-    c = a.intersection(b)
-    return float(len(c)) / (len(a) + len(b) - len(c))
+    def _to_device(self, batch, device="cuda"):
+        for k, v in batch.items():
+            batch[k] = v.to(device)
+        return batch
 
 
 if __name__ == "__main__":
     config = parse_args()
+    seed_everything(config.seed)
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path)
@@ -211,47 +176,36 @@ if __name__ == "__main__":
         convert_answers,
         axis=1
     )
-    df_train = train[:-64].reset_index(drop=True)
-    df_valid = train[-64:].reset_index(drop=True)
-    train_dataset = Dataset.from_pandas(df_train)
-    valid_dataset = Dataset.from_pandas(df_valid)
+    train_dataset = Dataset.from_pandas(train)
+    valid_dataset = Dataset.from_pandas(valid)
     tokenized_train_ds = train_dataset.map(
         prepare_train_features,
         batched=True,
         remove_columns=train_dataset.column_names,
-        pad_on_right=pad_on_right
+        tokenizer=tokenizer,
+        config=config,
+        pad_on_right=pad_on_right,
     )
     tokenized_valid_ds = valid_dataset.map(
-        prepare_train_features,
+        prepare_validation_features,
         batched=True,
+        tokenizer=tokenizer,
+        config=config,
         remove_columns=train_dataset.column_names,
         pad_on_right=pad_on_right
     )
-    model = AutoModelForQuestionAnswering.from_pretrained(config.model)
-    args = TrainingArguments(
-        f"chaii-qa",
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
-        learning_rate=config.learning_rate,
-        warmup_ratio=config.warmup,
-        gradient_accumulation_steps=config.accumulation_steps,
-        per_device_train_batch_size=config.train_batch_size,
-        per_device_eval_batch_size=config.test_batch_size,
-        num_train_epochs=config.epochs,
-        weight_decay=config.weight_decay,
+    tokenized_train_ds.set_format(
+        type='torch',
+        columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
     )
-    data_collator = default_data_collator
+    tokenized_valid_ds.set_format(
+        type='torch',
+        columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
+    )
     trainer = Trainer(
-        model,
-        args,
-        train_dataset=tokenized_train_ds,
-        eval_dataset=tokenized_valid_ds,
-        data_collator=data_collator,
-        tokenizer=tokenizer,
+        config.checkpoint,
+        tokenized_train_ds,
+        tokenized_valid_ds,
+        tokenizer
     )
     trainer.train()
-    output_path = os.path.join(
-        config.save_path,
-        f"{config.model.replace('/', '-')}_fold_{config.fold}.bin"
-    )
-    trainer.save_model()
