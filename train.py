@@ -45,7 +45,14 @@ def parse_args():
     parser.add_argument("--train_batch_size", type=int, default=4, required=False)
     parser.add_argument("--warmup", type=float, default=0.05, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
+    parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
     return parser.parse_args()
+
+
+def get_extra_data():
+    files = os.listdir("extra_data")
+    datasets = [pd.read_csv(f) for f in files]
+    return pd.concat(datasets)
 
 
 class Trainer:
@@ -141,10 +148,10 @@ class Trainer:
 
     def evaluate(self) -> float:
         valid_features = self.valid_set.map(
-            prepare_validation_features, 
+            prepare_validation_features,
             fn_kwargs={
                 "tokenizer": tokenizer,
-                "pad_on_right": pad_on_right, 
+                "pad_on_right": pad_on_right,
                 "max_length": self.max_length,
                 "doc_stride": self.doc_stride
             },
@@ -224,8 +231,11 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path, encoding="utf-8")
-    train = data[data.kfold != config.fold].reset_index()
-    valid = data[data.kfold == config.fold].reset_index()
+    train = data[data.kfold != config.fold]
+    valid = data[data.kfold == config.fold]
+    if config.use_extra_data:
+        extra_data = get_extra_data()
+        train = pd.concat([train, extra_data])
     train['answers'] = train[['answer_start', 'answer_text']].apply(
         convert_answers,
         axis=1
