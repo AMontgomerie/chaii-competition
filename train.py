@@ -49,9 +49,9 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_extra_data():
-    files = os.listdir("extra_data")
-    datasets = [pd.read_csv(f) for f in files]
+def get_extra_data(data_dir: str = "extra_data"):
+    files = os.listdir(data_dir)
+    datasets = [pd.read_csv(os.path.join(data_dir, f)) for f in files]
     return pd.concat(datasets)
 
 
