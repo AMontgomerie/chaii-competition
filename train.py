@@ -1,3 +1,4 @@
+import os
 import argparse
 import pandas as pd
 import numpy as np
@@ -29,7 +30,7 @@ set_verbosity_error()
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--accumulation_steps", type=int, default=8, required=False)
-    parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
+    parser.add_argument("--data_path", type=str, default="data/train_folds.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--epochs", type=int, default=1, required=False)
     parser.add_argument("--fold", type=int, required=True)
@@ -43,7 +44,14 @@ def parse_args():
     parser.add_argument("--train_batch_size", type=int, default=4, required=False)
     parser.add_argument("--warmup", type=float, default=0.1, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.1, required=False)
+    parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
     return parser.parse_args()
+
+
+def get_extra_data():
+    files = os.listdir("extra_data")
+    datasets = [pd.read_csv(f) for f in files]
+    return pd.concat(datasets)
 
 
 class Trainer:
@@ -170,7 +178,9 @@ if __name__ == "__main__":
     data = pd.read_csv(config.data_path)
     train = data[data.kfold != config.fold]
     valid = data[data.kfold == config.fold]
-    train = train.sample(frac=1, random_state=config.seed)
+    if config.use_extra_data:
+        extra_data = get_extra_data()
+        train = pd.concat([train, extra_data])
     train['answers'] = train[['answer_start', 'answer_text']].apply(
         convert_answers,
         axis=1
