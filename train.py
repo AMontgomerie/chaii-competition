@@ -8,12 +8,12 @@ from torch.utils.data import DataLoader
 from transformers import (
     AdamW,
     AutoTokenizer,
-    AutoModelForQuestionAnswering
+    AutoModelForQuestionAnswering,
+    get_cosine_schedule_with_warmup
 )
 from tqdm import tqdm
 import collections
 from typing import Tuple
-from datasets.utils.logging import set_verbosity_error
 
 from utils import AverageMeter, jaccard, seed_everything
 from preprocessing import (
@@ -23,28 +23,28 @@ from preprocessing import (
     postprocess_qa_predictions,
     convert_answers
 )
+from datasets.utils import disable_progress_bar
 
-set_verbosity_error()
-
+disable_progress_bar()
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--accumulation_steps", type=int, default=8, required=False)
-    parser.add_argument("--data_path", type=str, default="data/train_folds.csv", required=False)
+    parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--epochs", type=int, default=1, required=False)
+    parser.add_argument("--evals_per_epoch", type=int, default=0, required=False)
     parser.add_argument("--fold", type=int, required=True)
     parser.add_argument("--learning_rate", type=float, default=3e-5, required=False)
-    parser.add_argument("--logs_per_epoch", type=int, default=10, required=False)
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)
     parser.add_argument("--max_length", type=int, default=384, required=False)
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--save_path", type=str, default="output", required=False)
+    parser.add_argument("--scheduler", type=str, default="cosine", required=False)
     parser.add_argument("--seed", type=int, default=0, required=False)
     parser.add_argument("--valid_batch_size", type=int, default=32, required=False)
     parser.add_argument("--train_batch_size", type=int, default=4, required=False)
-    parser.add_argument("--warmup", type=float, default=0.1, required=False)
-    parser.add_argument("--weight_decay", type=float, default=0.1, required=False)
+    parser.add_argument("--warmup", type=float, default=0.05, required=False)
+    parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
     parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
     return parser.parse_args()
 
@@ -68,10 +68,12 @@ class Trainer:
         epochs: int = 1,
         train_batch_size: int = 4,
         valid_batch_size: int = 32,
-        logs_per_epoch: int = 10,
+        evals_per_epoch: int = 0,
         max_length: int = 384,
         doc_stride: int = 128,
         save_path: str = "output",
+        scheduler: str = "cosine",
+        warmup: float = 0.05
     ) -> None:
         self.model = AutoModelForQuestionAnswering.from_pretrained(model_name)
         self.model.to("cuda")
@@ -84,15 +86,26 @@ class Trainer:
         self.epochs = epochs
         self.train_batch_size = train_batch_size
         self.valid_batch_size = valid_batch_size
-        self.logs_per_epoch = logs_per_epoch
+        self.evals_per_epoch = evals_per_epoch
+        self.max_length = max_length
+        self.doc_stride = doc_stride
+        self.save_path = save_path
+        self.best_jaccard = 0
+        self.current_jaccard = 0
         self.optimizer = AdamW(
             self.model.parameters(),
             lr=config.learning_rate,
             weight_decay=config.weight_decay
         )
-        self.max_length = max_length
-        self.doc_stride = doc_stride
-        self.save_path = save_path
+        total_steps = len(train_set)//train_batch_size
+        if scheduler == "cosine":
+            self.scheduler = get_cosine_schedule_with_warmup(
+                self.optimizer,
+                num_warmup_steps=total_steps*warmup,
+                num_training_steps=total_steps
+            )
+        else:
+            self.scheduler = None
 
     def train(self) -> None:
         self.model.train()
@@ -108,25 +121,30 @@ class Trainer:
             with tqdm(total=len(dataloader), unit="batches") as tepoch:
                 tepoch.set_description(f"epoch {epoch}")
 
-                for batch in dataloader:
+                for step, batch in enumerate(dataloader):
                     batch = self._to_device(batch)
                     output = self.model(**batch)
                     loss = output.loss
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
-                    # scheduler.step()
+                    if self.scheduler:
+                        self.scheduler.step()
                     loss_score.update(loss.detach().item(), self.train_batch_size)
-                    tepoch.set_postfix(loss=loss_score.avg)
+                    if (
+                        self.evals_per_epoch > 0
+                        and step != 0 
+                        and step % (len(dataloader) // self.evals_per_epoch) == 0
+                    ):
+                        self.evaluate()
+                    metrics = {"loss": loss_score.avg}
+                    if self.evals_per_epoch > 0:
+                         metrics["jccd"] = self.current_jaccard
+                    tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
-            valid_jaccard = self.evaluate()
-            print(f"End of epoch {epoch} | Validation Jaccard {valid_jaccard}")
-
-            if valid_jaccard > best_jaccard:
-                print("Saving model.")
-                best_jaccard = valid_jaccard
-                self.model.save_pretrained(self.save_dir)
+            self.evaluate()
+            print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
 
     def evaluate(self) -> float:
         valid_features = self.valid_set.map(
@@ -148,7 +166,14 @@ class Trainer:
             columns=["input_ids", "attention_mask"]
         )
         predictions = self.predict(valid_features_small)
-        return self._calculate_validation_jaccard(self.valid_set, valid_features, predictions)
+        self.current_jaccard = self._calculate_validation_jaccard(
+            self.valid_set, 
+            valid_features, 
+            predictions
+        )
+        if self.current_jaccard > self.best_jaccard:
+            self.best_jaccard = self.current_jaccard
+            self.model.save_pretrained(self.save_path)
 
     @torch.no_grad()
     def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
@@ -232,10 +257,14 @@ if __name__ == "__main__":
             "pad_on_right": pad_on_right
         }
     )
-
     tokenized_train_ds.set_format(
         type='torch',
         columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
+    )
+    full_save_path = os.path.join(
+        config.save_path, 
+        f"{config.model.replace('/', '-')}",
+        f"fold_{config.fold}"
     )
     trainer = Trainer(
         config.model,
@@ -248,9 +277,13 @@ if __name__ == "__main__":
         epochs=config.epochs,
         train_batch_size=config.train_batch_size,
         valid_batch_size=config.valid_batch_size,
-        logs_per_epoch=config.logs_per_epoch,
+        evals_per_epoch=config.evals_per_epoch,
         max_length=config.max_length,
         doc_stride=config.doc_stride,
-        save_path=config.save_path
+        save_path=full_save_path,
+        scheduler=config.scheduler,
+        warmup=config.warmup
     )
     trainer.train()
+    tokenizer.save_pretrained(full_save_path)
+    
