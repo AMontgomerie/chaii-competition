@@ -5,11 +5,7 @@ from datasets import Dataset
 from transformers import AutoTokenizer
 import collections
 from typing import Tuple
-from datasets.utils.logging import set_verbosity_error
 from argparse import Namespace
-
-set_verbosity_error()
-
 
 def prepare_train_features(
     examples: Dataset,
