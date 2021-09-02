@@ -17,7 +17,6 @@ from typing import Tuple
 
 from utils import AverageMeter, jaccard, seed_everything
 from preprocessing import (
-    convert_answers,
     prepare_train_features,
     prepare_validation_features,
     postprocess_qa_predictions,
@@ -49,7 +48,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_extra_data(data_dir: str = "extra_data"):
+def get_extra_data(data_dir: str = "extra_data") -> pd.DataFrame:
     files = os.listdir(data_dir)
     datasets = [pd.read_csv(os.path.join(data_dir, f)) for f in files]
     return pd.concat(datasets)
