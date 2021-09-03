@@ -9,7 +9,8 @@ from transformers import (
     AdamW,
     AutoTokenizer,
     AutoModelForQuestionAnswering,
-    get_cosine_schedule_with_warmup
+    get_cosine_schedule_with_warmup,
+    get_linear_schedule_with_warmup
 )
 from tqdm import tqdm
 import collections
@@ -26,8 +27,10 @@ from datasets.utils import disable_progress_bar
 
 disable_progress_bar()
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
     parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--epochs", type=int, default=1, required=False)
@@ -72,7 +75,8 @@ class Trainer:
         doc_stride: int = 128,
         save_path: str = "output",
         scheduler: str = "cosine",
-        warmup: float = 0.05
+        warmup: float = 0.05,
+        adam_epsilon: float = 1e-8
     ) -> None:
         self.model = AutoModelForQuestionAnswering.from_pretrained(model_name)
         self.model.to("cuda")
@@ -91,20 +95,10 @@ class Trainer:
         self.save_path = save_path
         self.best_jaccard = 0
         self.current_jaccard = 0
-        self.optimizer = AdamW(
-            self.model.parameters(),
-            lr=config.learning_rate,
-            weight_decay=config.weight_decay
-        )
+        self.optimizer = self._make_optimizer(learning_rate, adam_epsilon, weight_decay)
         total_steps = len(train_set)//train_batch_size
-        if scheduler == "cosine":
-            self.scheduler = get_cosine_schedule_with_warmup(
-                self.optimizer,
-                num_warmup_steps=total_steps*warmup,
-                num_training_steps=total_steps
-            )
-        else:
-            self.scheduler = None
+        warmup_steps = total_steps * warmup
+        self.scheduler = self._make_scheduler(scheduler, warmup_steps, total_steps)
 
     def train(self) -> None:
         self.model.train()
@@ -113,7 +107,6 @@ class Trainer:
             batch_size=self.train_batch_size,
             shuffle=True
         )
-        best_jaccard = 0
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
 
@@ -132,13 +125,13 @@ class Trainer:
                     loss_score.update(loss.detach().item(), self.train_batch_size)
                     if (
                         self.evals_per_epoch > 0
-                        and step != 0 
+                        and step != 0
                         and step % (len(dataloader) // self.evals_per_epoch) == 0
                     ):
                         self.evaluate()
                     metrics = {"loss": loss_score.avg}
                     if self.evals_per_epoch > 0:
-                         metrics["jccd"] = self.current_jaccard
+                        metrics["jccd"] = self.current_jaccard
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
@@ -166,8 +159,8 @@ class Trainer:
         )
         predictions = self.predict(valid_features_small)
         self.current_jaccard = self._calculate_validation_jaccard(
-            self.valid_set, 
-            valid_features, 
+            self.valid_set,
+            valid_features,
             predictions
         )
         if self.current_jaccard > self.best_jaccard:
@@ -223,6 +216,56 @@ class Trainer:
             batch[k] = v.to(device)
         return batch
 
+    def _make_optimizer(
+        self,
+        learning_rate: float,
+        adam_epsilon: float,
+        weight_decay: float
+    ):
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p for n, p in self.model.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": weight_decay,
+            },
+            {
+                "params": [
+                    p for n, p in self.model.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.0,
+            },
+        ]
+        return AdamW(
+            optimizer_grouped_parameters,
+            lr=learning_rate,
+            eps=adam_epsilon,
+            correct_bias=True
+        )
+
+    def _make_scheduler(
+        self,
+        scheduler_type: str,
+        num_warmup_steps: int,
+        num_training_steps: int
+    ):
+        if scheduler_type == "cosine":
+            scheduler = get_cosine_schedule_with_warmup(
+                self.optimizer,
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps
+            )
+        else:
+            scheduler_type = get_linear_schedule_with_warmup(
+                self.optimizer,
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps
+            )
+        return scheduler
+
 
 if __name__ == "__main__":
     config = parse_args()
@@ -261,7 +304,7 @@ if __name__ == "__main__":
         columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
     )
     full_save_path = os.path.join(
-        config.save_path, 
+        config.save_path,
         f"{config.model.replace('/', '-')}",
         f"fold_{config.fold}"
     )
@@ -281,8 +324,8 @@ if __name__ == "__main__":
         doc_stride=config.doc_stride,
         save_path=full_save_path,
         scheduler=config.scheduler,
-        warmup=config.warmup
+        warmup=config.warmup,
+        adam_epsilon=config.adam_epsilon
     )
     trainer.train()
     tokenizer.save_pretrained(full_save_path)
-    
