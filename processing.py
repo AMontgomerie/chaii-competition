@@ -7,6 +7,7 @@ import collections
 from typing import Tuple
 from argparse import Namespace
 
+
 def prepare_train_features(
     examples: Dataset,
     tokenizer: AutoTokenizer,
@@ -172,3 +173,25 @@ def convert_answers(r):
         'answer_start': [start],
         'text': [text]
     }
+
+
+def filter_pred_strings(prediction_strings):
+    bad_starts = [".", ",", "(", ")", "-", "–",  ",", ";"]
+    bad_endings = ["...", "-", "(", ")", "–", ",", ";"]
+    cleaned_preds = []
+
+    for pred in prediction_strings.to_numpy():
+        if pred == "":
+            cleaned_preds.append(pred)
+            continue
+        while any([pred.startswith(y) for y in bad_starts]):
+            pred = pred[1:]
+        while any([pred.endswith(y) for y in bad_endings]):
+            if pred.endswith("..."):
+                pred = pred[:-3]
+            else:
+                pred = pred[:-1]
+
+        cleaned_preds.append(pred)
+
+    return cleaned_preds

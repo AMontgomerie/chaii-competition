@@ -17,11 +17,12 @@ import collections
 from typing import Tuple
 
 from utils import AverageMeter, jaccard, seed_everything
-from preprocessing import (
+from processing import (
     prepare_train_features,
     prepare_validation_features,
     postprocess_qa_predictions,
-    convert_answers
+    convert_answers,
+    filter_pred_strings
 )
 from datasets.utils import disable_progress_bar
 
@@ -210,6 +211,7 @@ class Trainer:
         ]
         res = pd.DataFrame(references)
         res['prediction'] = res['id'].apply(lambda r: final_predictions[r])
+        res["prediction"] = filter_pred_strings(res.prediction)
         res['jaccard'] = res[['answer', 'prediction']].apply(jaccard, axis=1)
         return res.jaccard.mean()
 

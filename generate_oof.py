@@ -14,8 +14,13 @@ import collections
 from tqdm.auto import tqdm
 import gc
 
-from preprocessing import prepare_validation_features, postprocess_qa_predictions
+from processing import (
+    prepare_validation_features,
+    postprocess_qa_predictions,
+    filter_pred_strings
+)
 from utils import jaccard
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -28,6 +33,7 @@ def parse_args():
     parser.add_argument("--save_dir", type=str, default="../output", required=False)
     parser.add_argument("--batch_size", type=int, default=64, required=False)
     return parser.parse_args()
+
 
 @torch.no_grad()
 def predict(model, dataset):
@@ -48,16 +54,17 @@ def predict(model, dataset):
         end_logits.append(output.end_logits.cpu().numpy())
     return np.vstack(start_logits), np.vstack(end_logits)
 
+
 if __name__ == "__main__":
     config = parse_args()
     data = pd.read_csv("train_folds.csv")
     fold_preds = []
-    
+
     for fold in range(config.num_folds):
         print(f"Generating predictions for fold {fold}")
         checkpoint = f"../input/chaii-deepset-xlm-roberta-large-squad2/fold_{fold}"
         tokenizer = AutoTokenizer.from_pretrained(checkpoint)
-        valid = data[data.kfold==fold]
+        valid = data[data.kfold == fold]
         dataset = Dataset.from_pandas(valid)
         tokenized_dataset = dataset.map(
             prepare_validation_features,
@@ -73,25 +80,26 @@ if __name__ == "__main__":
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
         processed_preds = postprocess_qa_predictions(
-            dataset, 
-            tokenized_dataset, 
+            dataset,
+            tokenized_dataset,
             (start_logits, end_logits),
             tokenizer
         )
         preds_df = pd.DataFrame({
-            "id": processed_preds.keys(), 
+            "id": processed_preds.keys(),
             "PredictionString": processed_preds.values()}
         )
         fold_preds.append(preds_df)
         del model
         gc.collect()
-    
+
     all_preds = pd.concat(fold_preds)
     oof = data.merge(all_preds, on="id")
     oof.to_csv(
-        os.path.join(config.save_dir, f"{config.model_dir}", "oof.csv"), 
+        os.path.join(config.save_dir, f"{config.model_dir}", "oof.csv"),
         index=False
     )
+    oof["PredictionString"] = filter_pred_strings(oof.PredictionString)
     jaccard_scores = oof[["answer_text", "PredictionString"]].apply(jaccard, axis=1)
     mean_oof = np.mean(jaccard_scores)
     print(f"Mean OOF: {mean_oof}")
