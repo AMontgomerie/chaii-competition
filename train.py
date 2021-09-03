@@ -72,6 +72,7 @@ class Trainer:
         valid_batch_size: int = 32,
         evals_per_epoch: int = 0,
         max_length: int = 384,
+        max_answer_length: int = 30,
         doc_stride: int = 128,
         save_path: str = "output",
         scheduler: str = "cosine",
@@ -91,6 +92,7 @@ class Trainer:
         self.valid_batch_size = valid_batch_size
         self.evals_per_epoch = evals_per_epoch
         self.max_length = max_length
+        self.max_answer_length = max_answer_length
         self.doc_stride = doc_stride
         self.save_path = save_path
         self.best_jaccard = 0
@@ -161,7 +163,7 @@ class Trainer:
         self.current_jaccard = self._calculate_validation_jaccard(
             self.valid_set,
             valid_features,
-            predictions
+            predictions,
         )
         if self.current_jaccard > self.best_jaccard:
             self.best_jaccard = self.current_jaccard
@@ -188,7 +190,7 @@ class Trainer:
         self,
         dataset: Dataset,
         features: Dataset,
-        raw_predictions: Tuple[np.ndarray, np.ndarray]
+        raw_predictions: Tuple[np.ndarray, np.ndarray],
     ) -> float:
         example_id_to_index = {k: i for i, k in enumerate(dataset["id"])}
         features_per_example = collections.defaultdict(list)
@@ -200,7 +202,7 @@ class Trainer:
             features,
             raw_predictions,
             self.tokenizer,
-            config.max_answer_length
+            self.max_answer_length
         )
         references = [
             {"id": ex["id"], "answer": ex["answers"]['text'][0]}
@@ -321,6 +323,7 @@ if __name__ == "__main__":
         valid_batch_size=config.valid_batch_size,
         evals_per_epoch=config.evals_per_epoch,
         max_length=config.max_length,
+        max_answer_length=config.max_answer_length,
         doc_stride=config.doc_stride,
         save_path=full_save_path,
         scheduler=config.scheduler,
