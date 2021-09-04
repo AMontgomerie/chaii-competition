@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     for fold in range(config.num_folds):
         print(f"Generating predictions for fold {fold}")
-        checkpoint = f"../input/chaii-deepset-xlm-roberta-large-squad2/fold_{fold}"
+        checkpoint = os.path.join(config.model_dir, f"fold_{fold}")
         tokenizer = AutoTokenizer.from_pretrained(checkpoint)
         valid = data[data.kfold == fold]
         dataset = Dataset.from_pandas(valid)
