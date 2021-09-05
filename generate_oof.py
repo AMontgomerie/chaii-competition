@@ -20,6 +20,9 @@ from processing import (
     filter_pred_strings
 )
 from utils import jaccard
+from datasets.utils import disable_progress_bar
+
+disable_progress_bar()
 
 
 def parse_args():
@@ -43,7 +46,6 @@ def predict(model, dataset):
         batch_size=config.batch_size,
         shuffle=False
     )
-    print(f"Iterating over {len(dataloader)} batches.")
     start_logits = []
     end_logits = []
     for batch in dataloader:
