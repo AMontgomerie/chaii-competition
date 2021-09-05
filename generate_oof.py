@@ -55,6 +55,11 @@ def predict(model, dataset):
     return np.vstack(start_logits), np.vstack(end_logits)
 
 
+def get_mean_oof(df):
+    jaccard_scores = df[["answer_text", "PredictionString"]].apply(jaccard, axis=1)
+    return np.mean(jaccard_scores)
+
+
 if __name__ == "__main__":
     config = parse_args()
     data = pd.read_csv("train_folds.csv")
@@ -100,6 +105,9 @@ if __name__ == "__main__":
         index=False
     )
     oof["PredictionString"] = filter_pred_strings(oof.PredictionString)
-    jaccard_scores = oof[["answer_text", "PredictionString"]].apply(jaccard, axis=1)
-    mean_oof = np.mean(jaccard_scores)
-    print(f"Mean OOF: {mean_oof}")
+    oof_hindi = get_mean_oof(oof[oof.language=="hindi"])
+    oof_tamil = get_mean_oof(oof[oof.language=="tamil"])
+    oof_all = get_mean_oof(oof)
+    print(f"OOF (Hindi): {oof_hindi}")
+    print(f"OOF (Tamil): {oof_tamil}")
+    print(f"OOF (Overall): {oof_all}")
