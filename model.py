@@ -13,7 +13,7 @@ class ModelOutput:
 
 
 class ChaiiModel(nn.Module):
-    def __init__(self, model_name):
+    def __init__(self, model_name: str) -> None:
         super(ChaiiModel, self).__init__()
         hidden_dropout_prob: float = 0.0
         layer_norm_eps: float = 1e-7
@@ -29,7 +29,13 @@ class ChaiiModel(nn.Module):
         self.transformer = AutoModel.from_pretrained(model_name, config=config)
         self.output = nn.Linear(config.hidden_size, config.num_labels)
         
-    def forward(self, input_ids, attention_mask, start_positions=None, end_positions=None):
+    def forward(
+        self, 
+        input_ids: torch.Tensor, 
+        attention_mask: torch.Tensor, 
+        start_positions: torch.Tensor = None, 
+        end_positions: torch.Tensor = None
+    ) -> ModelOutput:
         transformer_out = self.transformer(input_ids, attention_mask)
         sequence_output = transformer_out[0]
         logits = self.output(sequence_output)
@@ -43,7 +49,13 @@ class ChaiiModel(nn.Module):
 
         return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
     
-    def _loss(self, start_logits, end_logits, start_positions, end_positions):
+    def _loss(
+        self, 
+        start_logits: torch.Tensor,
+        end_logits: torch.Tensor, 
+        start_positions: torch.Tensor, 
+        end_positions: torch.Tensor
+    ):
         if len(start_positions.size()) > 1:
             start_positions = start_positions.squeeze(-1)
         if len(end_positions.size()) > 1:

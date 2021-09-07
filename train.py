@@ -148,7 +148,7 @@ class Trainer:
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
             
             if self.early_stopping_counter >= self.early_stopping_limit:
-                print("Early stopping limit reach. Terminating.")
+                print("Early stopping limit reached. Terminating.")
                 break
                 
 
@@ -179,7 +179,7 @@ class Trainer:
         )
         if self.current_jaccard > self.best_jaccard:
             self.best_jaccard = self.current_jaccard
-            self.model.save_pretrained(self.save_path)
+            torch.save(self.model.state_dict(), os.path.join(self.save_path, "model.bin"))
         else:
             self.early_stopping_counter += 1
             print(f"Early stopping {self.early_stopping_counter}/{self.early_stopping_limit}")
@@ -291,6 +291,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path, encoding="utf-8")
+    data = data.loc[:10]
     train = data[data.kfold != config.fold]
     valid = data[data.kfold == config.fold]
     if config.use_extra_data:
@@ -326,6 +327,8 @@ if __name__ == "__main__":
         f"{config.model.replace('/', '-')}",
         f"fold_{config.fold}"
     )
+    if not os.path.exists(full_save_path):
+        os.makedirs(full_save_path)
     trainer = Trainer(
         config.model,
         config.fold,
@@ -348,4 +351,3 @@ if __name__ == "__main__":
         early_stopping=config.early_stopping
     )
     trainer.train()
-    tokenizer.save_pretrained(full_save_path)
