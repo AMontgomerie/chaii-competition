@@ -16,6 +16,7 @@ from tqdm import tqdm
 import collections
 from typing import Tuple
 
+from model import ChaiiModel
 from utils import AverageMeter, jaccard, seed_everything
 from processing import (
     prepare_train_features,
@@ -28,12 +29,13 @@ from datasets.utils import disable_progress_bar
 
 disable_progress_bar()
 
-
+    
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
     parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
+    parser.add_argument("--early_stopping", type=int, default=3, required=False)
     parser.add_argument("--epochs", type=int, default=1, required=False)
     parser.add_argument("--evals_per_epoch", type=int, default=0, required=False)
     parser.add_argument("--fold", type=int, required=True)
@@ -79,9 +81,10 @@ class Trainer:
         save_path: str = "output",
         scheduler: str = "cosine",
         warmup: float = 0.05,
-        adam_epsilon: float = 1e-8
+        adam_epsilon: float = 1e-8,
+        early_stopping: int = 3,
     ) -> None:
-        self.model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+        self.model = ChaiiModel(model_name)
         self.model.to("cuda")
         self.fold = fold
         self.train_set = train_set
@@ -99,6 +102,8 @@ class Trainer:
         self.save_path = save_path
         self.best_jaccard = 0
         self.current_jaccard = 0
+        self.early_stopping_counter = 0
+        self.early_stopping_limit = early_stopping
         self.optimizer = self._make_optimizer(learning_rate, adam_epsilon, weight_decay)
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
@@ -141,6 +146,11 @@ class Trainer:
 
             self.evaluate()
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
+            
+            if self.early_stopping_counter >= self.early_stopping_limit:
+                print("Early stopping limit reach. Terminating.")
+                break
+                
 
     def evaluate(self) -> float:
         valid_features = self.valid_set.map(
@@ -170,6 +180,9 @@ class Trainer:
         if self.current_jaccard > self.best_jaccard:
             self.best_jaccard = self.current_jaccard
             self.model.save_pretrained(self.save_path)
+        else:
+            self.early_stopping_counter += 1
+            print(f"Early stopping {self.early_stopping_counter}/{self.early_stopping_limit}")
 
     @torch.no_grad()
     def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
@@ -331,7 +344,8 @@ if __name__ == "__main__":
         save_path=full_save_path,
         scheduler=config.scheduler,
         warmup=config.warmup,
-        adam_epsilon=config.adam_epsilon
+        adam_epsilon=config.adam_epsilon,
+        early_stopping=config.early_stopping
     )
     trainer.train()
     tokenizer.save_pretrained(full_save_path)
