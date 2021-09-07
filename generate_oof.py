@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from transformers import (
@@ -14,6 +15,7 @@ import collections
 from tqdm.auto import tqdm
 import gc
 
+from model import ChaiiModel
 from processing import (
     prepare_validation_features,
     postprocess_qa_predictions,
@@ -25,13 +27,19 @@ from datasets.utils import disable_progress_bar
 disable_progress_bar()
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--base_model", 
+        type=str, 
+        default="deepset/xlm-roberta-large-squad2", 
+        required=False
+    )
     parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)
     parser.add_argument("--max_length", type=int, default=384, required=False)
-    parser.add_argument("--model_dir", type=str, required=True)
+    parser.add_argument("--saved_model_dir", type=str, required=True)
     parser.add_argument("--num_folds", type=int, default=5, required=False)
     parser.add_argument("--save_dir", type=str, default="../output", required=False)
     parser.add_argument("--batch_size", type=int, default=64, required=False)
@@ -39,7 +47,7 @@ def parse_args():
 
 
 @torch.no_grad()
-def predict(model, dataset):
+def predict(model: nn.Module, dataset: Dataset) -> np.ndarray:
     model.eval()
     dataloader = DataLoader(
         dataset,
@@ -57,7 +65,7 @@ def predict(model, dataset):
     return np.vstack(start_logits), np.vstack(end_logits)
 
 
-def get_mean_oof(df):
+def get_mean_oof(df: pd.DataFrame) -> float:
     jaccard_scores = df[["answer_text", "PredictionString"]].apply(jaccard, axis=1)
     return np.mean(jaccard_scores)
 
@@ -66,11 +74,10 @@ if __name__ == "__main__":
     config = parse_args()
     data = pd.read_csv("train_folds.csv")
     fold_preds = []
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model)
 
     for fold in range(config.num_folds):
         print(f"Generating predictions for fold {fold}")
-        checkpoint = os.path.join(config.model_dir, f"fold_{fold}")
-        tokenizer = AutoTokenizer.from_pretrained(checkpoint)
         valid = data[data.kfold == fold]
         dataset = Dataset.from_pandas(valid)
         tokenized_dataset = dataset.map(
@@ -83,7 +90,9 @@ if __name__ == "__main__":
             lambda example: example, remove_columns=['example_id', 'offset_mapping']
         )
         input_dataset.set_format(type="torch")
-        model = AutoModelForQuestionAnswering.from_pretrained(checkpoint)
+        model = ChaiiModel(config.base_model)
+        checkpoint = os.path.join(config.model_dir, f"fold_{fold}", "model.bin")
+        model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
         processed_preds = postprocess_qa_predictions(
