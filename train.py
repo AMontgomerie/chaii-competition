@@ -291,7 +291,6 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path, encoding="utf-8")
-    data = data.loc[:10]
     train = data[data.kfold != config.fold]
     valid = data[data.kfold == config.fold]
     if config.use_extra_data:
