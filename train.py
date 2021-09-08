@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument("--warmup", type=float, default=0.05, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
     parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
+    parser.add_argument("--fp16", dest="fp16", action="store_true")
     return parser.parse_args()
 
 
@@ -83,6 +84,7 @@ class Trainer:
         warmup: float = 0.05,
         adam_epsilon: float = 1e-8,
         early_stopping: int = 3,
+        fp16: bool = False
     ) -> None:
         self.model = ChaiiModel(model_name)
         self.model.to("cuda")
@@ -108,6 +110,9 @@ class Trainer:
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
         self.scheduler = self._make_scheduler(scheduler, warmup_steps, total_steps)
+        self.fp16 = fp16
+        if self.fp16:
+            self.scaler = torch.cuda.amp.GradScaler()
 
     def train(self) -> None:
         self.model.train()
@@ -124,10 +129,18 @@ class Trainer:
 
                 for step, batch in enumerate(dataloader):
                     batch = self._to_device(batch)
-                    output = self.model(**batch)
-                    loss = output.loss
-                    loss.backward()
-                    self.optimizer.step()
+                    if self.fp16:
+                        with torch.cuda.amp.autocast():
+                            output = self.model(**batch)
+                        loss = output.loss
+                        self.scaler.scale(loss).backward()
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                    else:
+                        output = self.model(**batch)
+                        loss = output.loss
+                        loss.backward()
+                        self.optimizer.step()
                     self.optimizer.zero_grad()
                     if self.scheduler:
                         self.scheduler.step()
@@ -277,7 +290,7 @@ class Trainer:
                 num_training_steps=num_training_steps
             )
         else:
-            scheduler_type = get_linear_schedule_with_warmup(
+            scheduler = get_linear_schedule_with_warmup(
                 self.optimizer,
                 num_warmup_steps=num_warmup_steps,
                 num_training_steps=num_training_steps
@@ -291,8 +304,8 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path, encoding="utf-8")
-    train = data[data.kfold != config.fold]
-    valid = data[data.kfold == config.fold]
+    train = data.loc[data.kfold != config.fold]
+    valid = data.loc[data.kfold == config.fold]
     if config.use_extra_data:
         extra_data = get_extra_data()
         train = pd.concat([train, extra_data])
@@ -347,6 +360,7 @@ if __name__ == "__main__":
         scheduler=config.scheduler,
         warmup=config.warmup,
         adam_epsilon=config.adam_epsilon,
-        early_stopping=config.early_stopping
+        early_stopping=config.early_stopping,
+        fp16=config.fp16
     )
     trainer.train()
