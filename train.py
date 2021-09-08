@@ -134,7 +134,7 @@ class Trainer:
 
                 for step, batch in enumerate(dataloader):
                     if self.accumulation_steps == 1 and step == 0:
-                        self.zero_grad()
+                        self.optimizer.zero_grad()
                     batch = self._to_device(batch)
                     if self.fp16:
                         with torch.cuda.amp.autocast():
