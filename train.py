@@ -126,15 +126,12 @@ class Trainer:
         )
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
-            if self.accumulation_steps > 1:
-                self.optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
             with tqdm(total=len(dataloader), unit="batches") as tepoch:
                 tepoch.set_description(f"epoch {epoch}")
 
                 for step, batch in enumerate(dataloader):
-                    if self.accumulation_steps == 1 and step == 0:
-                        self.optimizer.zero_grad()
                     batch = self._to_device(batch)
                     if self.fp16:
                         with torch.cuda.amp.autocast():
@@ -151,6 +148,7 @@ class Trainer:
                             self.scaler.update()
                         else:
                             self.optimizer.step()
+                        self.optimizer.zero_grad()
                     if self.scheduler:
                         self.scheduler.step()
                     loss_score.update(loss.detach().item(), self.train_batch_size)
@@ -313,6 +311,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path, encoding="utf-8")
+    data= data.iloc[:10]
     train = data.loc[data.kfold != config.fold]
     valid = data.loc[data.kfold == config.fold]
     if config.use_extra_data:
