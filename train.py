@@ -151,7 +151,7 @@ class Trainer:
                         self.optimizer.zero_grad()
                     if self.scheduler:
                         self.scheduler.step()
-                    loss_score.update(loss.detach().item(), self.train_batch_size)
+                    loss_score.update(loss.item(), self.train_batch_size)
                     if (
                         self.evals_per_epoch > 0
                         and step != 0
