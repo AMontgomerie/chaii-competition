@@ -32,6 +32,7 @@ disable_progress_bar()
     
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--accumulation_steps", type=int, default=1, required=False)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
     parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
@@ -39,6 +40,7 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=1, required=False)
     parser.add_argument("--evals_per_epoch", type=int, default=0, required=False)
     parser.add_argument("--fold", type=int, required=True)
+    parser.add_argument("--fp16", dest="fp16", action="store_true")
     parser.add_argument("--learning_rate", type=float, default=3e-5, required=False)
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)
     parser.add_argument("--max_length", type=int, default=384, required=False)
@@ -48,10 +50,9 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=0, required=False)
     parser.add_argument("--valid_batch_size", type=int, default=32, required=False)
     parser.add_argument("--train_batch_size", type=int, default=4, required=False)
+    parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
     parser.add_argument("--warmup", type=float, default=0.05, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
-    parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
-    parser.add_argument("--fp16", dest="fp16", action="store_true")
     return parser.parse_args()
 
 
@@ -84,7 +85,8 @@ class Trainer:
         warmup: float = 0.05,
         adam_epsilon: float = 1e-8,
         early_stopping: int = 3,
-        fp16: bool = False
+        fp16: bool = False,
+        accumulation_steps: int = 1
     ) -> None:
         self.model = ChaiiModel(model_name)
         self.model.to("cuda")
@@ -110,6 +112,7 @@ class Trainer:
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
         self.scheduler = self._make_scheduler(scheduler, warmup_steps, total_steps)
+        self.accumulation_steps = accumulation_steps
         self.fp16 = fp16
         if self.fp16:
             self.scaler = torch.cuda.amp.GradScaler()
@@ -123,25 +126,31 @@ class Trainer:
         )
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
+            if self.accumulation_steps > 1:
+                self.optimizer.zero_grad()
 
             with tqdm(total=len(dataloader), unit="batches") as tepoch:
                 tepoch.set_description(f"epoch {epoch}")
 
                 for step, batch in enumerate(dataloader):
+                    if self.accumulation_steps == 1 and step == 0:
+                        self.zero_grad()
                     batch = self._to_device(batch)
                     if self.fp16:
                         with torch.cuda.amp.autocast():
                             output = self.model(**batch)
-                        loss = output.loss
+                        loss = output.loss / self.accumulation_steps
                         self.scaler.scale(loss).backward()
-                        self.scaler.step(self.optimizer)
-                        self.scaler.update()
                     else:
                         output = self.model(**batch)
-                        loss = output.loss
+                        loss = output.loss / self.accumulation_steps
                         loss.backward()
-                        self.optimizer.step()
-                    self.optimizer.zero_grad()
+                    if (step + 1) % self.accumulation_steps == 0:
+                        if self.fp16:
+                            self.scaler.step(self.optimizer)
+                            self.scaler.update()
+                        else:
+                            self.optimizer.step()
                     if self.scheduler:
                         self.scheduler.step()
                     loss_score.update(loss.detach().item(), self.train_batch_size)
@@ -361,6 +370,7 @@ if __name__ == "__main__":
         warmup=config.warmup,
         adam_epsilon=config.adam_epsilon,
         early_stopping=config.early_stopping,
-        fp16=config.fp16
+        fp16=config.fp16,
+        accumulation_steps=config.accumulation_steps
     )
     trainer.train()
