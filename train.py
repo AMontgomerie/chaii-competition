@@ -126,7 +126,8 @@ class Trainer:
             self.train_set,
             batch_size=self.train_batch_size,
             shuffle=True,
-            num_workers=self.dataloader_workers
+            num_workers=self.dataloader_workers,
+            pin_memory=True
         )
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
@@ -214,7 +215,8 @@ class Trainer:
             dataset,
             batch_size=self.valid_batch_size,
             shuffle=False,
-            num_workers=self.dataloader_workers
+            num_workers=self.dataloader_workers,
+            pin_memory=True
         )
         start_logits = []
         end_logits = []
