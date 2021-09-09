@@ -171,11 +171,15 @@ class Trainer:
             predictions,
         )
         if self.current_jaccard > self.best_jaccard:
+            print(f"Score improved from {self.best_jaccard} to {self.current_jaccard}.")
             self.best_jaccard = self.current_jaccard
             torch.save(self.model.state_dict(), os.path.join(self.save_path, "model.bin"))
         else:
             self.early_stopping_counter += 1
-            print(f"Early stopping {self.early_stopping_counter}/{self.early_stopping_limit}")
+            print(
+                f"{self.current_jaccard} is not an improvement."
+                f" Early stopping {self.early_stopping_counter}/{self.early_stopping_limit}"
+            )
 
     @torch.no_grad()
     def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
