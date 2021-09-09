@@ -17,7 +17,7 @@ import collections
 from typing import Tuple
 
 from model import ChaiiModel
-from utils import AverageMeter, jaccard, seed_everything
+from utils import AverageMeter, jaccard, seed_everything, parse_args
 from processing import (
     prepare_train_features,
     prepare_validation_features,
@@ -28,34 +28,7 @@ from processing import (
 from datasets.utils import disable_progress_bar
 
 disable_progress_bar()
-#os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--accumulation_steps", type=int, default=1, required=False)
-    parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
-    parser.add_argument("--dataloader_workers", type=int, default=8, required=False)
-    parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
-    parser.add_argument("--doc_stride", type=int, default=128, required=False)
-    parser.add_argument("--early_stopping", type=int, default=3, required=False)
-    parser.add_argument("--epochs", type=int, default=1, required=False)
-    parser.add_argument("--evals_per_epoch", type=int, default=0, required=False)
-    parser.add_argument("--fold", type=int, required=True)
-    parser.add_argument("--fp16", dest="fp16", action="store_true")
-    parser.add_argument("--learning_rate", type=float, default=3e-5, required=False)
-    parser.add_argument("--max_answer_length", type=int, default=30, required=False)
-    parser.add_argument("--max_length", type=int, default=384, required=False)
-    parser.add_argument("--model", type=str, required=True)
-    parser.add_argument("--save_path", type=str, default="../output", required=False)
-    parser.add_argument("--scheduler", type=str, default="cosine", required=False)
-    parser.add_argument("--seed", type=int, default=0, required=False)
-    parser.add_argument("--valid_batch_size", type=int, default=32, required=False)
-    parser.add_argument("--train_batch_size", type=int, default=4, required=False)
-    parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
-    parser.add_argument("--warmup", type=float, default=0.05, required=False)
-    parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
-    return parser.parse_args()
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def get_extra_data(data_dir: str = "extra_data") -> pd.DataFrame:
