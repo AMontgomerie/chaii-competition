@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader
 from transformers import (
     AdamW,
     AutoTokenizer,
-    AutoModelForQuestionAnswering,
     get_cosine_schedule_with_warmup,
     get_linear_schedule_with_warmup
 )
@@ -28,6 +27,7 @@ from processing import (
 from datasets.utils import disable_progress_bar
 
 disable_progress_bar()
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def parse_args():
