@@ -29,7 +29,7 @@ from datasets.utils import disable_progress_bar
 
 disable_progress_bar()
 
-    
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--accumulation_steps", type=int, default=1, required=False)
@@ -136,11 +136,11 @@ class Trainer:
                     if self.fp16:
                         with torch.cuda.amp.autocast():
                             output = self.model(**batch)
-                        loss = output.loss / self.accumulation_steps
+                        loss = output.loss
                         self.scaler.scale(loss).backward()
                     else:
                         output = self.model(**batch)
-                        loss = output.loss / self.accumulation_steps
+                        loss = output.loss
                         loss.backward()
                     if (step + 1) % self.accumulation_steps == 0:
                         if self.fp16:
@@ -166,11 +166,10 @@ class Trainer:
 
             self.evaluate()
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
-            
+
             if self.early_stopping_counter >= self.early_stopping_limit:
                 print("Early stopping limit reached. Terminating.")
                 break
-                
 
     def evaluate(self) -> float:
         valid_features = self.valid_set.map(
