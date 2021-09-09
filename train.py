@@ -34,6 +34,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--accumulation_steps", type=int, default=1, required=False)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
+    parser.add_argument("--dataloader_workers", type=int, default=8, required=False)
     parser.add_argument("--data_path", type=str, default="train_folds.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--early_stopping", type=int, default=3, required=False)
@@ -86,7 +87,8 @@ class Trainer:
         adam_epsilon: float = 1e-8,
         early_stopping: int = 3,
         fp16: bool = False,
-        accumulation_steps: int = 1
+        accumulation_steps: int = 1,
+        dataloader_workers: int = 1,
     ) -> None:
         self.model = ChaiiModel(model_name)
         self.model.to("cuda")
@@ -113,6 +115,7 @@ class Trainer:
         warmup_steps = total_steps * warmup
         self.scheduler = self._make_scheduler(scheduler, warmup_steps, total_steps)
         self.accumulation_steps = accumulation_steps
+        self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
         if self.fp16:
             self.scaler = torch.cuda.amp.GradScaler()
@@ -122,7 +125,8 @@ class Trainer:
         dataloader = DataLoader(
             self.train_set,
             batch_size=self.train_batch_size,
-            shuffle=True
+            shuffle=True,
+            num_workers=self.dataloader_workers
         )
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
@@ -209,7 +213,8 @@ class Trainer:
         dataloader = DataLoader(
             dataset,
             batch_size=self.valid_batch_size,
-            shuffle=False
+            shuffle=False,
+            num_workers=self.dataloader_workers
         )
         start_logits = []
         end_logits = []
@@ -368,6 +373,7 @@ if __name__ == "__main__":
         adam_epsilon=config.adam_epsilon,
         early_stopping=config.early_stopping,
         fp16=config.fp16,
-        accumulation_steps=config.accumulation_steps
+        accumulation_steps=config.accumulation_steps,
+        dataloader_workers=config.dataloader_workers
     )
     trainer.train()
