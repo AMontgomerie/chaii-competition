@@ -15,6 +15,7 @@ from transformers.data.data_collator import default_data_collator
 from tqdm import tqdm
 import collections
 from typing import Tuple
+from datasets.utils import disable_progress_bar
 
 from model import ChaiiModel
 from utils import AverageMeter, jaccard, seed_everything, parse_args
@@ -25,17 +26,10 @@ from processing import (
     convert_answers,
     filter_pred_strings
 )
-from datasets.utils import disable_progress_bar
+from data import get_extra_data
 
 disable_progress_bar()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-
-def get_extra_data(data_dir: str = "extra_data") -> pd.DataFrame:
-    files = os.listdir(data_dir)
-    files = [f for f in files if f.endswith(".csv")]
-    datasets = [pd.read_csv(os.path.join(data_dir, f), encoding="utf-8") for f in files]
-    return pd.concat(datasets)
 
 
 class Trainer:

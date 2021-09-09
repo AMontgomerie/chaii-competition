@@ -80,7 +80,7 @@ class TezChaiiModel(tez.Model):
         self.model_name = model_name
         self.num_train_steps = num_train_steps
         self.step_scheduler_after = "batch"
-        self.weight_decay
+        self.weight_decay = weight_decay
 
         hidden_dropout_prob: float = 0.0
         layer_norm_eps: float = 1e-7

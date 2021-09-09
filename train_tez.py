@@ -1,4 +1,3 @@
-
 from transformers import AutoTokenizer
 import numpy as np
 import torch
@@ -9,7 +8,7 @@ from tez import enums
 from tez.callbacks import Callback
 from tqdm import tqdm
 from datasets import Dataset
-
+from datasets.utils import disable_progress_bar
 from model import TezChaiiModel
 from utils import seed_everything, jaccard, parse_args
 from processing import (
@@ -19,6 +18,8 @@ from processing import (
     convert_answers
 )
 from data import get_extra_data, ChaiiDataset
+
+disable_progress_bar()
 
 
 class EarlyStopping(Callback):
@@ -176,6 +177,7 @@ if __name__ == "__main__":
         num_train_steps=n_train_steps,
         learning_rate=config.learning_rate,
         steps_per_epoch=len(df_train) / config.train_batch_size,
+        weight_decay=config.weight_decay
     )
     valid_data_loader = torch.utils.data.DataLoader(
         valid_dataset,
