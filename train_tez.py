@@ -134,7 +134,7 @@ class EarlyStopping(Callback):
 
 if __name__ == "__main__":
     config = parse_args()
-    # seed_everything(config.seed)
+    seed_everything(config.seed)
     output_path = f"{config.model.replace('/','-')}_fold_{config.fold}.bin"
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
