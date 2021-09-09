@@ -11,6 +11,7 @@ from transformers import (
     get_cosine_schedule_with_warmup,
     get_linear_schedule_with_warmup
 )
+from transformers.data.data_collator import default_data_collator
 from tqdm import tqdm
 import collections
 from typing import Tuple
@@ -27,7 +28,7 @@ from processing import (
 from datasets.utils import disable_progress_bar
 
 disable_progress_bar()
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+#os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def parse_args():
@@ -127,7 +128,8 @@ class Trainer:
             batch_size=self.train_batch_size,
             shuffle=True,
             num_workers=self.dataloader_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=default_data_collator
         )
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
@@ -216,7 +218,8 @@ class Trainer:
             batch_size=self.valid_batch_size,
             shuffle=False,
             num_workers=self.dataloader_workers,
-            pin_memory=True
+            pin_memory=True,
+            collate_fn=default_data_collator
         )
         start_logits = []
         end_logits = []
