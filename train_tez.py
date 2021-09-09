@@ -1,3 +1,4 @@
+import os
 from transformers import AutoTokenizer
 import numpy as np
 import torch
@@ -18,6 +19,8 @@ from processing import (
     convert_answers
 )
 from data import get_extra_data, ChaiiDataset
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 disable_progress_bar()
 
@@ -131,7 +134,7 @@ class EarlyStopping(Callback):
 
 if __name__ == "__main__":
     config = parse_args()
-    seed_everything(config.seed)
+    # seed_everything(config.seed)
     output_path = f"{config.model.replace('/','-')}_fold_{config.fold}.bin"
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
