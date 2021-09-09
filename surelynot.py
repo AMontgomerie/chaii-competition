@@ -494,7 +494,7 @@ output_path = f"{args.model.replace('/',':')}__fold_{args.fold}.bin"
 tokenizer = transformers.AutoTokenizer.from_pretrained(args.model)
 pad_on_right = tokenizer.padding_side == "right"
 
-df = pd.read_csv("../input/chaii-extra/train_folds.csv")
+df = pd.read_csv("train_folds.csv")
 df_train = df[df.kfold != args.fold].reset_index(drop=True)
 
 external_data1 = pd.read_csv("../input/chaii-extra/mlqa_hindi.csv")
