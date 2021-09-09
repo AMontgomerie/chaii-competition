@@ -1,3 +1,4 @@
+from data import get_extra_data
 from datasets import Dataset
 from tez.callbacks import Callback
 from tez import enums
@@ -497,9 +498,7 @@ pad_on_right = tokenizer.padding_side == "right"
 df = pd.read_csv("train_folds.csv")
 df_train = df[df.kfold != args.fold].reset_index(drop=True)
 
-external_data1 = pd.read_csv("../input/chaii-extra/mlqa_hindi.csv")
-external_data2 = pd.read_csv("../input/chaii-extra/xquad.csv")
-external_data = pd.concat([external_data1, external_data2], axis=0)
+external_data = get_extra_data()
 external_data = external_data.drop_duplicates(keep="last")
 external_data = external_data.reset_index(drop=True)
 
