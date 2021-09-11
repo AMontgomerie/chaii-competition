@@ -1,15 +1,15 @@
 import os
-import argparse
 import pandas as pd
 import numpy as np
 from datasets import Dataset
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import (
     AdamW,
     AutoTokenizer,
-    get_cosine_schedule_with_warmup,
-    get_linear_schedule_with_warmup
+    AutoModelForQuestionAnswering,
+    get_scheduler
 )
 from transformers.data.data_collator import default_data_collator
 from tqdm import tqdm
@@ -40,6 +40,7 @@ class Trainer:
         train_set: Dataset,
         valid_set: Dataset,
         tokenizer: AutoTokenizer,
+        model_type: str = "default",
         learning_rate: float = 3e-5,
         weight_decay: float = 0.1,
         epochs: int = 1,
@@ -58,7 +59,7 @@ class Trainer:
         accumulation_steps: int = 1,
         dataloader_workers: int = 1,
     ) -> None:
-        self.model = ChaiiModel(model_name)
+        self.model = self._make_model(model_name, model_type)
         self.model.to("cuda")
         self.fold = fold
         self.train_set = train_set
@@ -81,7 +82,7 @@ class Trainer:
         self.optimizer = self._make_optimizer(learning_rate, adam_epsilon, weight_decay)
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
-        self.scheduler = self._make_scheduler(scheduler, warmup_steps, total_steps)
+        self.scheduler = get_scheduler(scheduler, warmup_steps, total_steps)
         self.accumulation_steps = accumulation_steps
         self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
@@ -239,7 +240,7 @@ class Trainer:
         learning_rate: float,
         adam_epsilon: float,
         weight_decay: float
-    ):
+    ) -> AdamW:
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
@@ -264,25 +265,11 @@ class Trainer:
             correct_bias=True
         )
 
-    def _make_scheduler(
-        self,
-        scheduler_type: str,
-        num_warmup_steps: int,
-        num_training_steps: int
-    ):
-        if scheduler_type == "cosine":
-            scheduler = get_cosine_schedule_with_warmup(
-                self.optimizer,
-                num_warmup_steps=num_warmup_steps,
-                num_training_steps=num_training_steps
-            )
+    def _make_model(self, model_name: str, model_type: str = "hf") -> nn.Module:
+        if model_type == "hf":
+            return AutoModelForQuestionAnswering.from_pretrained(model_name)
         else:
-            scheduler = get_linear_schedule_with_warmup(
-                self.optimizer,
-                num_warmup_steps=num_warmup_steps,
-                num_training_steps=num_training_steps
-            )
-        return scheduler
+            return ChaiiModel(model_name)
 
 
 if __name__ == "__main__":
@@ -334,6 +321,7 @@ if __name__ == "__main__":
         tokenized_train_ds,
         valid_dataset,
         tokenizer,
+        model_type=config.model_type,
         learning_rate=config.learning_rate,
         weight_decay=config.weight_decay,
         epochs=config.epochs,
