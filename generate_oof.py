@@ -86,10 +86,7 @@ if __name__ == "__main__":
 
     all_preds = pd.concat(fold_preds)
     oof = data.merge(all_preds, on="id")
-    oof.to_csv(
-        os.path.join(config.save_dir, f"{config.model_weights_dir}", "oof.csv"),
-        index=False
-    )
+    oof.to_csv(os.path.join(config.save_dir, "oof.csv"), index=False)
     oof["PredictionString"] = filter_pred_strings(oof.PredictionString)
     oof_hindi = get_mean_oof(oof[oof.language == "hindi"])
     oof_tamil = get_mean_oof(oof[oof.language == "tamil"])

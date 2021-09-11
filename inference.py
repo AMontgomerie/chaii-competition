@@ -65,11 +65,5 @@ if __name__ == "__main__":
         del model
         gc.collect()
 
-    fold_start_logits.to_csv(
-        os.path.join(config.save_dir, f"{config.saved_weights_dir}_start_logits.csv"),
-        index=False
-    )
-    fold_end_logits.to_csv(
-        os.path.join(config.save_dir, f"{config.saved_weights_dir}_end_logits.csv"),
-        index=False
-    )
+    fold_start_logits.to_csv(os.path.join(config.save_dir, f"start_logits.csv"), index=False)
+    fold_end_logits.to_csv(os.path.join(config.save_dir, f"end_logits.csv"), index=False)
