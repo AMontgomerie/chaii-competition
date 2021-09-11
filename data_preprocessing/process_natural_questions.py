@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
         required=False
     )
     parser.add_argument("--quantity", type=int, default=5000, required=False)
+    parser.add_argument("--length_limit", type=int, default=40000, required=False)
     parser.add_argument("--output_path", type=str, default="./", required=False)
     return parser.parse_args()
 
@@ -31,9 +32,11 @@ def remove_space(text: str) -> str:
     return cleaned_text.replace(" 't", "'t")
 
 
-def make_formatted_row(row: Dict) -> Dict:
+def make_formatted_row(row: Dict, length_limit) -> Dict:
     context = remove_html(row["document_text"])
     context = remove_space(context)
+    if len(context) > length_limit:
+        context = context[:length_limit]
     question = row["question_text"]
     question = remove_space(question)
     answer_start_token = row["annotations"][0]["short_answers"][0]["start_token"]
@@ -58,8 +61,12 @@ if __name__ == "__main__":
         while len(data) < args.quantity:
             row = json.loads(f.readline())
             if len(row["annotations"]) > 0 and len(row["annotations"][0]["short_answers"]) > 0:
-                formatted_row = make_formatted_row(row)
-                if len(formatted_row["question"]) > 0 and len(formatted_row["answer_text"]) > 0:
+                formatted_row = make_formatted_row(row, args.length_limit)
+                if (
+                    len(formatted_row["question"]) > 0
+                    and len(formatted_row["answer_text"]) > 0
+                    and formatted_row["answer_start"] != -1
+                ):
                     data.append(formatted_row)
     df = pd.DataFrame(data)
     df.to_csv(os.path.join(args.output_path, "natural_questions_en.csv"), index=False)

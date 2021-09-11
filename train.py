@@ -82,7 +82,7 @@ class Trainer:
         self.optimizer = self._make_optimizer(learning_rate, adam_epsilon, weight_decay)
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
-        self.scheduler = get_scheduler(scheduler, warmup_steps, total_steps)
+        self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
         self.accumulation_steps = accumulation_steps
         self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
