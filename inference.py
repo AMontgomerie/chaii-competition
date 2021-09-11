@@ -65,5 +65,7 @@ if __name__ == "__main__":
         del model
         gc.collect()
 
-    fold_start_logits.to_csv(os.path.join(config.save_dir, f"start_logits.csv"), index=False)
-    fold_end_logits.to_csv(os.path.join(config.save_dir, f"end_logits.csv"), index=False)
+    start_logits = pd.DataFrame(fold_start_logits)
+    end_logits = pd.DataFrame(fold_end_logits)
+    start_logits.to_csv(os.path.join(config.save_dir, f"start_logits.csv"), index=False)
+    end_logits.to_csv(os.path.join(config.save_dir, f"end_logits.csv"), index=False)
