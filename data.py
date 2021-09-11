@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import torch
 
 
 def get_extra_data(data_dir: str = "extra_data") -> pd.DataFrame:
