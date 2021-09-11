@@ -38,8 +38,8 @@ def predict(model: nn.Module, dataset: Dataset) -> np.ndarray:
 if __name__ == "__main__":
     config = parse_args_inference()
     data = pd.read_csv(config.input_data)
-    fold_start_logits = {}
-    fold_end_logits = {}
+    fold_start_logits = []
+    fold_end_logits = []
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
 
     for fold in range(config.num_folds):
@@ -60,12 +60,12 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
-        fold_start_logits[fold] = start_logits
-        fold_end_logits[fold] = end_logits
+        fold_start_logits.append(start_logits)
+        fold_end_logits.append(end_logits)
         del model
         gc.collect()
 
-    start_logits = pd.DataFrame(fold_start_logits)
-    end_logits = pd.DataFrame(fold_end_logits)
-    start_logits.to_csv(os.path.join(config.save_dir, f"start_logits.csv"), index=False)
-    end_logits.to_csv(os.path.join(config.save_dir, f"end_logits.csv"), index=False)
+    start_logits = np.array(fold_start_logits)
+    end_logits = np.array(fold_end_logits)
+    np.save(os.path.join(config.save_dir, f"start_logits.npy"), start_logits)
+    np.save(os.path.join(config.save_dir, f"end_logits.npy"), end_logits)
