@@ -281,7 +281,7 @@ if __name__ == "__main__":
     train = data.loc[data.kfold != config.fold]
     valid = data.loc[data.kfold == config.fold]
     if config.use_extra_data:
-        extra_data = get_extra_data()
+        extra_data = get_extra_data(config.extra_data_dir)
         train = pd.concat([train, extra_data])
     train['answers'] = train[['answer_start', 'answer_text']].apply(
         convert_answers,

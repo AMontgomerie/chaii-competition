@@ -138,3 +138,4 @@ dmypy.json
 cython_debug/
 
 extra_data/natural_questions_en.csv
+.DS_Store
