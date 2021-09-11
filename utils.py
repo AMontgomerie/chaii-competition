@@ -41,7 +41,7 @@ def seed_everything(seed: int) -> None:
     torch.backends.cudnn.benchmark = True
 
 
-def parse_args():
+def parse_args_train():
     parser = argparse.ArgumentParser()
     parser.add_argument("--accumulation_steps", type=int, default=1, required=False)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
@@ -65,4 +65,24 @@ def parse_args():
     parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
     parser.add_argument("--warmup", type=float, default=0.05, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
+    return parser.parse_args()
+
+
+def parse_args_inference() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--base_model",
+        type=str,
+        default="deepset/xlm-roberta-large-squad2",
+        required=False
+    )
+    parser.add_argument("--device", type=str, default="cuda", required=False)
+    parser.add_argument("--doc_stride", type=int, default=128, required=False)
+    parser.add_argument("--input_data", type=str, default="train_folds.csv", required=False)
+    parser.add_argument("--max_answer_length", type=int, default=30, required=False)
+    parser.add_argument("--max_length", type=int, default=384, required=False)
+    parser.add_argument("--model_weights_dir", type=str, required=True)
+    parser.add_argument("--num_folds", type=int, default=5, required=False)
+    parser.add_argument("--save_dir", type=str, default="", required=False)
+    parser.add_argument("--batch_size", type=int, default=64, required=False)
     return parser.parse_args()

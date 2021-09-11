@@ -18,7 +18,7 @@ from typing import Tuple
 from datasets.utils import disable_progress_bar
 
 from model import ChaiiModel
-from utils import AverageMeter, jaccard, seed_everything, parse_args
+from utils import AverageMeter, jaccard, seed_everything, parse_args_train
 from processing import (
     prepare_train_features,
     prepare_validation_features,
@@ -286,7 +286,7 @@ class Trainer:
 
 
 if __name__ == "__main__":
-    config = parse_args()
+    config = parse_args_train()
     seed_everything(config.seed)
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
