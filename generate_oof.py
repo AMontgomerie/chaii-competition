@@ -66,7 +66,7 @@ if __name__ == "__main__":
         )
         input_dataset.set_format(type="torch")
         model = ChaiiModel(config.base_model)
-        checkpoint = os.path.join(config.saved_weights_dir, f"fold_{fold}", "model.bin")
+        checkpoint = os.path.join(config.model_weights_dir, f"fold_{fold}", "model.bin")
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     all_preds = pd.concat(fold_preds)
     oof = data.merge(all_preds, on="id")
     oof.to_csv(
-        os.path.join(config.save_dir, f"{config.model_dir}", "oof.csv"),
+        os.path.join(config.save_dir, f"{config.model_weights_dir}", "oof.csv"),
         index=False
     )
     oof["PredictionString"] = filter_pred_strings(oof.PredictionString)

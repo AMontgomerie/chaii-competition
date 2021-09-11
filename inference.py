@@ -56,7 +56,7 @@ if __name__ == "__main__":
         )
         input_dataset.set_format(type="torch")
         model = ChaiiModel(config.base_model)
-        checkpoint = os.path.join(config.saved_weights_dir, f"fold_{fold}", "model.bin")
+        checkpoint = os.path.join(config.model_weights_dir, f"fold_{fold}", "model.bin")
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
@@ -65,5 +65,11 @@ if __name__ == "__main__":
         del model
         gc.collect()
 
-    fold_start_logits.to_csv(f"{config.saved_weights_dir}_start_logits.csv", index=False)
-    fold_end_logits.to_csv(f"{config.saved_weights_dir}_end_logits.csv", index=False)
+    fold_start_logits.to_csv(
+        os.path.join(config.save_dir, f"{config.saved_weights_dir}_start_logits.csv"),
+        index=False
+    )
+    fold_end_logits.to_csv(
+        os.path.join(config.save_dir, f"{config.saved_weights_dir}_end_logits.csv"),
+        index=False
+    )
