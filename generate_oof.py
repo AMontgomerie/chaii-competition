@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from datasets.utils import disable_progress_bar
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import gc
 
 from model import ChaiiModel
@@ -65,7 +65,10 @@ if __name__ == "__main__":
             lambda example: example, remove_columns=['example_id', 'offset_mapping']
         )
         input_dataset.set_format(type="torch")
-        model = ChaiiModel(config.base_model)
+        if config.model_type == "hf":
+            model = AutoModelForQuestionAnswering.from_pretrained(config.base_model)
+        else:
+            model = ChaiiModel(config.base_model)
         checkpoint = os.path.join(
             config.model_weights_dir,
             f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
