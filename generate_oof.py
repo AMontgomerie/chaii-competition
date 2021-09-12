@@ -66,7 +66,10 @@ if __name__ == "__main__":
         )
         input_dataset.set_format(type="torch")
         model = ChaiiModel(config.base_model)
-        checkpoint = os.path.join(config.model_weights_dir, f"fold_{fold}", "model.bin")
+        checkpoint = os.path.join(
+            config.model_weights_dir,
+            f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
+        )
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
