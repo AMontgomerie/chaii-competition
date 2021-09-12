@@ -74,7 +74,8 @@ class Trainer:
         self.max_length = max_length
         self.max_answer_length = max_answer_length
         self.doc_stride = doc_stride
-        self.save_path = save_path
+        file_name = f"{model_name.replace('/', '-')}_fold_{fold}.bin"
+        self.save_path = os.path.join(save_path, file_name)
         self.best_jaccard = 0
         self.current_jaccard = 0
         self.early_stopping_counter = 0
@@ -174,7 +175,7 @@ class Trainer:
         if self.current_jaccard > self.best_jaccard:
             print(f"Score improved from {self.best_jaccard} to {self.current_jaccard}.")
             self.best_jaccard = self.current_jaccard
-            torch.save(self.model.state_dict(), os.path.join(self.save_path, "model.bin"))
+            torch.save(self.model.state_dict(), self.save_path)
         else:
             self.early_stopping_counter += 1
             print(
@@ -308,13 +309,8 @@ if __name__ == "__main__":
         type='torch',
         columns=['input_ids', 'attention_mask', 'start_positions', 'end_positions']
     )
-    full_save_path = os.path.join(
-        config.save_path,
-        f"{config.model.replace('/', '-')}",
-        f"fold_{config.fold}"
-    )
-    if not os.path.exists(full_save_path):
-        os.makedirs(full_save_path)
+    if not os.path.exists(config.save_path):
+        os.makedirs(config.save_path)
     trainer = Trainer(
         config.model,
         config.fold,
@@ -331,7 +327,7 @@ if __name__ == "__main__":
         max_length=config.max_length,
         max_answer_length=config.max_answer_length,
         doc_stride=config.doc_stride,
-        save_path=full_save_path,
+        save_path=config.save_path,
         scheduler=config.scheduler,
         warmup=config.warmup,
         adam_epsilon=config.adam_epsilon,
