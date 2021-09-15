@@ -52,7 +52,7 @@ def parse_args_train():
     parser.add_argument("--epochs", type=int, default=1, required=False)
     parser.add_argument("--evals_per_epoch", type=int, default=0, required=False)
     parser.add_argument("--extra_data_dir", type=str, default="extra_data", required=False)
-    parser.add_argument("--fold", type=int, required=True)
+    parser.add_argument("--fold", type=int, required=False)
     parser.add_argument("--fp16", dest="fp16", action="store_true")
     parser.add_argument("--learning_rate", type=float, default=3e-5, required=False)
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)

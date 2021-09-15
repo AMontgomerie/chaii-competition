@@ -275,6 +275,8 @@ class Trainer:
 
 if __name__ == "__main__":
     config = parse_args_train()
+    if config.fold is None:
+        raise ValueError("No fold chosen. Use --fold.")
     seed_everything(config.seed)
     tokenizer = AutoTokenizer.from_pretrained(config.model)
     pad_on_right = tokenizer.padding_side == "right"
