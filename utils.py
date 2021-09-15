@@ -65,6 +65,7 @@ def parse_args_train():
     parser.add_argument("--valid_batch_size", type=int, default=32, required=False)
     parser.add_argument("--train_batch_size", type=int, default=4, required=False)
     parser.add_argument("--use_extra_data", dest="use_extra_data", action="store_true")
+    parser.add_argument("--valid_data_path", type=str, default=None, required=False)
     parser.add_argument("--warmup", type=float, default=0.05, required=False)
     parser.add_argument("--weight_decay", type=float, default=0.0, required=False)
     return parser.parse_args()
