@@ -288,6 +288,7 @@ class Trainer:
         else:
             model = ChaiiModel(model_name)
         if model_weights:
+            print(f"Loading weights from {model_weights}")
             model.load_state_dict(torch.load(model_weights))
         return model
 
