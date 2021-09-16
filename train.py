@@ -58,6 +58,7 @@ class Trainer:
         fp16: bool = False,
         accumulation_steps: int = 1,
         dataloader_workers: int = 1,
+        pad_on_right: bool = True
     ) -> None:
         self.model = self._make_model(model_name, model_type)
         self.model.to("cuda")
@@ -89,6 +90,7 @@ class Trainer:
         self.fp16 = fp16
         if self.fp16:
             self.scaler = torch.cuda.amp.GradScaler()
+        self.pad_on_right = pad_on_right
 
     def train(self) -> None:
         self.model.train()
@@ -151,8 +153,8 @@ class Trainer:
         valid_features = self.valid_set.map(
             prepare_validation_features,
             fn_kwargs={
-                "tokenizer": tokenizer,
-                "pad_on_right": pad_on_right,
+                "tokenizer": self.tokenizer,
+                "pad_on_right": self.pad_on_right,
                 "max_length": self.max_length,
                 "doc_stride": self.doc_stride
             },
@@ -336,6 +338,7 @@ if __name__ == "__main__":
         early_stopping=config.early_stopping,
         fp16=config.fp16,
         accumulation_steps=config.accumulation_steps,
-        dataloader_workers=config.dataloader_workers
+        dataloader_workers=config.dataloader_workers,
+        pad_on_right=pad_on_right
     )
     trainer.train()
