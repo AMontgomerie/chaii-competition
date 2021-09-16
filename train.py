@@ -226,7 +226,7 @@ class Trainer:
         )
         references = [
             {"id": ex["id"], "answer": ex["answers"]['text'][0]}
-            for ex in valid_dataset
+            for ex in dataset
         ]
         res = pd.DataFrame(references)
         res['prediction'] = res['id'].apply(lambda r: final_predictions[r])
