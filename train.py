@@ -136,21 +136,21 @@ class Trainer:
                         and step != len(dataloader) * self.train_batch_size
                         and step % (len(dataloader) // self.evals_per_epoch) == 0
                     ):
-                        self.evaluate()
+                        end = self.evaluate()
+                        if end:
+                            break
                     metrics = {"loss": loss_score.avg}
                     if self.evals_per_epoch > 0:
                         metrics["jccd"] = self.current_jaccard
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
-            self.evaluate()
+            end = self.evaluate()
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
-
-            if self.early_stopping_counter >= self.early_stopping_limit:
-                print("Early stopping limit reached. Terminating.")
+            if end:
                 break
 
-    def evaluate(self) -> float:
+    def evaluate(self) -> bool:
         valid_features = self.valid_set.map(
             prepare_validation_features,
             fn_kwargs={
@@ -185,6 +185,11 @@ class Trainer:
                 f"{self.current_jaccard} is not an improvement."
                 f" Early stopping {self.early_stopping_counter}/{self.early_stopping_limit}"
             )
+        if self.early_stopping_counter >= self.early_stopping_limit:
+            print("Early stopping limit reached. Terminating.")
+            return False
+        else:
+            return True
 
     @torch.no_grad()
     def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
