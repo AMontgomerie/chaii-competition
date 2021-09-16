@@ -105,6 +105,7 @@ class Trainer:
         for epoch in range(1, self.epochs + 1):
             loss_score = AverageMeter()
             self.optimizer.zero_grad()
+            end = False
 
             with tqdm(total=len(dataloader), unit="batches") as tepoch:
                 tepoch.set_description(f"epoch {epoch}")
@@ -145,7 +146,8 @@ class Trainer:
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
-            end = self.evaluate()
+            if not end:
+                end = self.evaluate()
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
             if end:
                 break
