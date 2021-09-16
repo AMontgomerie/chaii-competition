@@ -190,9 +190,9 @@ class Trainer:
             )
         if self.early_stopping_counter >= self.early_stopping_limit:
             print("Early stopping limit reached. Terminating.")
-            return False
-        else:
             return True
+        else:
+            return False
 
     @torch.no_grad()
     def predict(self, dataset: Dataset) -> Tuple[np.ndarray, np.ndarray]:
