@@ -58,9 +58,10 @@ class Trainer:
         fp16: bool = False,
         accumulation_steps: int = 1,
         dataloader_workers: int = 1,
-        pad_on_right: bool = True
+        pad_on_right: bool = True,
+        model_weights: str = None
     ) -> None:
-        self.model = self._make_model(model_name, model_type)
+        self.model = self._make_model(model_name, model_type, model_weights)
         self.model.to("cuda")
         self.fold = fold
         self.train_set = train_set
@@ -276,11 +277,19 @@ class Trainer:
             correct_bias=True
         )
 
-    def _make_model(self, model_name: str, model_type: str = "hf") -> nn.Module:
+    def _make_model(
+        self,
+        model_name: str,
+        model_type: str = "hf",
+        model_weights: str = None
+    ) -> nn.Module:
         if model_type == "hf":
-            return AutoModelForQuestionAnswering.from_pretrained(model_name)
+            model = AutoModelForQuestionAnswering.from_pretrained(model_name)
         else:
-            return ChaiiModel(model_name)
+            model = ChaiiModel(model_name)
+        if model_weights:
+            model.load_state_dict(torch.load(model_weights))
+        return model
 
 
 if __name__ == "__main__":
@@ -329,6 +338,7 @@ if __name__ == "__main__":
         tokenized_train_ds,
         valid_dataset,
         tokenizer,
+        model_weights=config.model_weights,
         model_type=config.model_type,
         learning_rate=config.learning_rate,
         weight_decay=config.weight_decay,
