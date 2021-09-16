@@ -133,6 +133,7 @@ class Trainer:
                     if (
                         self.evals_per_epoch > 0
                         and step != 0
+                        and step != len(dataloader) * self.train_batch_size
                         and step % (len(dataloader) // self.evals_per_epoch) == 0
                     ):
                         self.evaluate()
