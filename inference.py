@@ -74,5 +74,5 @@ if __name__ == "__main__":
 
     start_logits = np.array(fold_start_logits)
     end_logits = np.array(fold_end_logits)
-    np.save(os.path.join(config.save_dir, f"start_logits.npy"), start_logits)
-    np.save(os.path.join(config.save_dir, f"end_logits.npy"), end_logits)
+    np.save(os.path.join(config.save_dir, f"{filename}_start_logits.npy"), start_logits)
+    np.save(os.path.join(config.save_dir, f"{filename}_end_logits.npy"), end_logits)
