@@ -59,10 +59,10 @@ if __name__ == "__main__":
             model = AutoModelForQuestionAnswering.from_pretrained(config.base_model)
         else:
             model = ChaiiModel(config.base_model)
-        if config.base_model_name is None:
-            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
-        else:
+        if config.base_model_name:
             filename = f"{config.base_model_name.replace('/', '-')}_fold_{fold}.bin"
+        else:
+            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
         checkpoint = os.path.join(config.model_weights_dir, filename)
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
@@ -74,5 +74,9 @@ if __name__ == "__main__":
 
     start_logits = np.array(fold_start_logits)
     end_logits = np.array(fold_end_logits)
+    if config.base_model_name:
+        filename = f"{config.base_model_name.replace('/', '-')}"
+    else:
+        filename = f"{config.base_model.replace('/', '-')}"
     np.save(os.path.join(config.save_dir, f"{filename}_start_logits.npy"), start_logits)
     np.save(os.path.join(config.save_dir, f"{filename}_end_logits.npy"), end_logits)
