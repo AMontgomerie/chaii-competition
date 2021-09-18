@@ -149,9 +149,9 @@ class Trainer:
 
             if not end:
                 end = self.evaluate()
-            print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
             if end:
                 break
+            print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
 
     def evaluate(self) -> bool:
         valid_features = self.valid_set.map(
@@ -182,6 +182,7 @@ class Trainer:
             print(f"Score improved from {self.best_jaccard} to {self.current_jaccard}.")
             self.best_jaccard = self.current_jaccard
             torch.save(self.model.state_dict(), self.save_path)
+            self.early_stopping_counter = 0
         else:
             self.early_stopping_counter += 1
             print(
