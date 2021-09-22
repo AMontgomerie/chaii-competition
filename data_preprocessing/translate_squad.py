@@ -1,23 +1,47 @@
+import argparse
 import pandas as pd
-from translation import EnTaTranslator
+from translation import Translator
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--language", type=str, required=True)
+    parser.add_argument("--questions_only", dest="questions_only", action="store_true")
+    parser.add_argument("--qa_batch_size", type=int, default=128, required=False)
+    parser.add_argument("--context_batch_size", type=int, default=32, required=False)
+
 
 def find_answer_start(row):
     return row.context.find(row.answer_text)
 
 
 if __name__ == "__main__":
-    translator = EnTaTranslator()
+    config = parse_args()
+    translator = Translator(config.language)
     squad_en = pd.read_csv("squad_csv/train-squad.csv")
-    tamil_contexts = translator.translate_to_tamil(squad_en.context, batch_size=32)
-    tamil_questions = translator.translate_to_tamil(squad_en.question, batch_size=128)
-    tamil_texts = translator.translate_to_tamil(squad_en.text, batch_size=128)
-    tamil_squad = pd.DataFrame({
+    questions = translator.translate(
+        squad_en.question,
+        batch_size=config.qa_batch_size
+    )
+    if not config.questions_only:
+        contexts = translator.translate(
+            squad_en.context,
+            batch_size=config.context_batch_size
+        )
+        texts = translator.translate(
+            squad_en.text,
+            batch_size=config.qa_batch_size
+        )
+    translated_squad = pd.DataFrame({
         "id": squad_en.id,
-        "context": tamil_contexts,
-        "question": tamil_questions,
-        "answer_text": tamil_texts
+        "context": squad_en.contexts if config.questions_only else contexts,
+        "question": questions,
+        "answer_text": squad_en.text if config.questions_only else texts
     })
-    tamil_squad["answer_start"] = tamil_squad.apply(find_answer_start, axis=1)
-    tamil_squad["language"] = ["tamil"]*len(squad_en)
-    tamil_squad.to_csv("tamil_squad.csv", index=False)
-    print(tamil_squad.sample(10))
+    translated_squad["answer_start"] = translated_squad.apply(
+        find_answer_start,
+        axis=1
+    )
+    translated_squad["language"] = [config.language]*len(squad_en)
+    translated_squad.to_csv(f"{config.language}_squad.csv", index=False)
+    print(translated_squad.sample(10))
