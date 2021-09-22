@@ -9,6 +9,7 @@ def parse_args():
     parser.add_argument("--questions_only", dest="questions_only", action="store_true")
     parser.add_argument("--qa_batch_size", type=int, default=128, required=False)
     parser.add_argument("--context_batch_size", type=int, default=32, required=False)
+    return parser.parse_args()
 
 
 def find_answer_start(row):
