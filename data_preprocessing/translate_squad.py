@@ -15,7 +15,7 @@ def parse_args():
 
 
 def find_answer_start(row):
-    return row.context.find(row.answer_text)
+    return row.context.find(str(row.answer_text))
 
 
 if __name__ == "__main__":
@@ -32,15 +32,16 @@ if __name__ == "__main__":
             batch_size=config.context_batch_size
         )
         texts = translator.translate(
-            squad_en.text,
+            squad_en.answer_text,
             batch_size=config.qa_batch_size
         )
     translated_squad = pd.DataFrame({
-        "id": squad_en.id,
         "context": squad_en.context if config.questions_only else contexts,
         "question": questions,
-        "answer_text": squad_en.text if config.questions_only else texts
+        "answer_text": squad_en.answer_text if config.questions_only else texts
     })
+    if "id" in squad_en.columns:
+        translated_squad["id"] = squad_en.id
     translated_squad["answer_start"] = translated_squad.apply(
         find_answer_start,
         axis=1
