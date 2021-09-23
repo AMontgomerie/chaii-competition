@@ -10,6 +10,7 @@ def parse_args():
     parser.add_argument("--qa_batch_size", type=int, default=128, required=False)
     parser.add_argument("--context_batch_size", type=int, default=32, required=False)
     parser.add_argument("--data_path", type=str, default="train-squad.csv", required=False)
+    parser.add_argument("--save_path", type=str, default="translated_squad.csv", required=False)
     return parser.parse_args()
 
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
         )
     translated_squad = pd.DataFrame({
         "id": squad_en.id,
-        "context": squad_en.contexts if config.questions_only else contexts,
+        "context": squad_en.context if config.questions_only else contexts,
         "question": questions,
         "answer_text": squad_en.text if config.questions_only else texts
     })
@@ -45,5 +46,5 @@ if __name__ == "__main__":
         axis=1
     )
     translated_squad["language"] = [config.language]*len(squad_en)
-    translated_squad.to_csv(f"{config.language}_squad.csv", index=False)
+    translated_squad.to_csv(config.save_path, index=False)
     print(translated_squad.sample(10))
