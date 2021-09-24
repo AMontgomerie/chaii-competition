@@ -32,6 +32,14 @@ disable_progress_bar()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
+def make_tokenizer(model: str):
+    tokenizer = AutoTokenizer.from_pretrained(model)
+    if tokenizer.cls_token is None:
+        special_tokens_dict = {'additional_special_tokens': ['[CLS]']}
+        tokenizer.add_special_tokens(special_tokens_dict)
+    return tokenizer
+
+
 class Trainer:
     def __init__(
         self,
@@ -291,6 +299,7 @@ class Trainer:
         if model_weights:
             print(f"Loading weights from {model_weights}")
             model.load_state_dict(torch.load(model_weights))
+        model.resize_token_embeddings(len(self.tokenizer))
         return model
 
 
@@ -299,7 +308,7 @@ if __name__ == "__main__":
     if config.fold is None:
         raise ValueError("No fold chosen. Use --fold.")
     seed_everything(config.seed)
-    tokenizer = AutoTokenizer.from_pretrained(config.model)
+    tokenizer = make_tokenizer(config.model)
     pad_on_right = tokenizer.padding_side == "right"
     data = pd.read_csv(config.data_path, encoding="utf-8")
     train = data.loc[data.kfold != config.fold]
