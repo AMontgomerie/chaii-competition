@@ -46,6 +46,7 @@ if __name__ == "__main__":
         find_answer_start,
         axis=1
     )
-    translated_squad["language"] = [config.language]*len(squad_en)
+    translated_squad["language"] = config.language
+    valid_questions = translated_squad.question.str.contains("?", regex=False)
+    translated_squad = translated_squad[valid_questions]
     translated_squad.to_csv(config.save_path, index=False)
-    print(translated_squad.sample(10))
