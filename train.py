@@ -1,4 +1,5 @@
 import os
+import math
 import pandas as pd
 import numpy as np
 from datasets import Dataset
@@ -85,7 +86,8 @@ class Trainer:
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
         self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
-        self.eval_steps = [s for s in range(0, total_steps, total_steps//evals_per_epoch)]
+        eval_interval = math.floor(total_steps / evals_per_epoch)
+        self.eval_steps = [step for step in range(0, total_steps, eval_interval)]
         self.accumulation_steps = accumulation_steps
         self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
