@@ -72,7 +72,6 @@ class Trainer:
         self.epochs = epochs
         self.train_batch_size = train_batch_size
         self.valid_batch_size = valid_batch_size
-        self.evals_per_epoch = evals_per_epoch
         self.max_length = max_length
         self.max_answer_length = max_answer_length
         self.doc_stride = doc_stride
@@ -86,6 +85,7 @@ class Trainer:
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
         self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
+        self.eval_steps = [s for s in range(0, total_steps, total_steps//evals_per_epoch)]
         self.accumulation_steps = accumulation_steps
         self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
@@ -135,8 +135,7 @@ class Trainer:
                     if (
                         self.evals_per_epoch > 0
                         and step != 0
-                        and step != len(dataloader) * self.train_batch_size
-                        and step % (len(dataloader) // self.evals_per_epoch) == 0
+                        and step in self.eval_steps
                     ):
                         end = self.evaluate()
                         if end:
