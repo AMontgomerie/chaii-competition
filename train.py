@@ -146,8 +146,6 @@ class Trainer:
                         if end:
                             break
                     metrics = {"loss": loss_score.avg}
-                    if self.evals_per_epoch > 0:
-                        metrics["jccd"] = self.current_jaccard
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
