@@ -86,8 +86,11 @@ class Trainer:
         total_steps = len(train_set)//train_batch_size
         warmup_steps = total_steps * warmup
         self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
-        eval_interval = math.floor(total_steps / evals_per_epoch)
-        self.eval_steps = [step for step in range(0, total_steps, eval_interval)]
+        if evals_per_epoch > 0:
+            eval_interval = math.floor(total_steps / evals_per_epoch)
+            self.eval_steps = [step for step in range(0, total_steps, eval_interval)]
+        else:
+            self.eval_steps = []
         self.accumulation_steps = accumulation_steps
         self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
@@ -135,7 +138,7 @@ class Trainer:
                         self.scheduler.step()
                     loss_score.update(loss.item(), self.train_batch_size)
                     if (
-                        self.evals_per_epoch > 0
+                        len(self.eval_steps) > 0
                         and step != 0
                         and step in self.eval_steps
                     ):
