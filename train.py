@@ -143,8 +143,8 @@ class Trainer:
                         and step in self.eval_steps
                     ):
                         end = self.evaluate()
-                        if end:
-                            break
+                    if end:
+                        break
                     metrics = {"loss": loss_score.avg}
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
