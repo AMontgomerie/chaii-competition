@@ -141,8 +141,8 @@ class Trainer:
                     loss_score.update(loss.item(), self.train_batch_size)
                     if step in self.eval_steps:
                         end = self.evaluate()
-                        if end:
-                            break
+                    if end:
+                        break
                     metrics = {"loss": loss_score.avg}
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
