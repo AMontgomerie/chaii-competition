@@ -48,6 +48,7 @@ class Trainer:
         train_batch_size: int = 4,
         valid_batch_size: int = 32,
         evals_per_epoch: int = 0,
+        eval_on_first_step: bool = False,
         max_length: int = 384,
         max_answer_length: int = 30,
         doc_stride: int = 128,
@@ -88,9 +89,10 @@ class Trainer:
         self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
         if evals_per_epoch > 0:
             eval_interval = math.floor(total_steps / evals_per_epoch)
-            self.eval_steps = [step for step in range(eval_interval, total_steps, eval_interval)]
+            first_eval = 0 if eval_on_first_step else eval_interval
+            self.eval_steps = [step for step in range(first_eval, total_steps, eval_interval)]
             if len(self.eval_steps) == evals_per_epoch:
-                self.eval_steps = self.eval_steps[:-1] # avoid double eval at end of epoch
+                self.eval_steps = self.eval_steps[:-1]  # avoid double eval at end of epoch
         else:
             self.eval_steps = []
         self.accumulation_steps = accumulation_steps
@@ -348,6 +350,7 @@ if __name__ == "__main__":
         train_batch_size=config.train_batch_size,
         valid_batch_size=config.valid_batch_size,
         evals_per_epoch=config.evals_per_epoch,
+        eval_on_first_step=config.eval_on_first_step,
         max_length=config.max_length,
         max_answer_length=config.max_answer_length,
         doc_stride=config.doc_stride,
