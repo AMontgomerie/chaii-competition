@@ -71,7 +71,7 @@ if __name__ == "__main__":
             (start_logits, end_logits),
             tokenizer
         )
-        if config.base_model_name:
+        if config.model_name:
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.csv"
         else:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.csv"
