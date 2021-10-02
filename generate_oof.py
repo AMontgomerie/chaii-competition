@@ -69,23 +69,19 @@ if __name__ == "__main__":
             model = AutoModelForQuestionAnswering.from_pretrained(config.base_model)
         else:
             model = ChaiiModel(config.base_model)
-        if config.base_model_name is None:
+        if config.model_name is None:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
         else:
-            filename = f"{config.base_model_name.replace('/', '-')}_fold_{fold}.bin"
+            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
         checkpoint = os.path.join(config.model_weights_dir, filename)
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
-        processed_preds = postprocess_qa_predictions(
+        preds_df = postprocess_qa_predictions(
             dataset,
             tokenized_dataset,
             (start_logits, end_logits),
             tokenizer
-        )
-        preds_df = pd.DataFrame({
-            "id": processed_preds.keys(),
-            "PredictionString": processed_preds.values()}
         )
         fold_preds.append(preds_df)
         del model

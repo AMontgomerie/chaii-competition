@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import gc
 
 from model import ChaiiModel
-from processing import prepare_validation_features
+from processing import prepare_validation_features, postprocess_qa_predictions
 from utils import parse_args_inference
 
 disable_progress_bar()
@@ -38,8 +38,6 @@ def predict(model: nn.Module, dataset: Dataset) -> np.ndarray:
 if __name__ == "__main__":
     config = parse_args_inference()
     data = pd.read_csv(config.input_data)
-    fold_start_logits = []
-    fold_end_logits = []
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
 
     for fold in range(config.num_folds):
@@ -59,24 +57,24 @@ if __name__ == "__main__":
             model = AutoModelForQuestionAnswering.from_pretrained(config.base_model)
         else:
             model = ChaiiModel(config.base_model)
-        if config.base_model_name:
-            filename = f"{config.base_model_name.replace('/', '-')}_fold_{fold}.bin"
+        if config.model_name:
+            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
         else:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
         checkpoint = os.path.join(config.model_weights_dir, filename)
         model.load_state_dict(torch.load(checkpoint))
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
-        fold_start_logits.append(start_logits)
-        fold_end_logits.append(end_logits)
+        pred_df = postprocess_qa_predictions(
+            dataset,
+            tokenized_dataset,
+            (start_logits, end_logits),
+            tokenizer
+        )
+        if config.base_model_name:
+            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.csv"
+        else:
+            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.csv"
+        pred_df.to_csv(filename, index=False)
         del model
         gc.collect()
-
-    start_logits = np.array(fold_start_logits)
-    end_logits = np.array(fold_end_logits)
-    if config.base_model_name:
-        filename = f"{config.base_model_name.replace('/', '-')}"
-    else:
-        filename = f"{config.base_model.replace('/', '-')}"
-    np.save(os.path.join(config.save_dir, f"{filename}_start_logits.npy"), start_logits)
-    np.save(os.path.join(config.save_dir, f"{filename}_end_logits.npy"), end_logits)

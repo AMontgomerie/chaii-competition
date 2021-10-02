@@ -115,7 +115,10 @@ def postprocess_qa_predictions(
     for i, feature in enumerate(features):
         features_per_example[example_id_to_index[feature["example_id"]]].append(i)
 
-    predictions = collections.OrderedDict()
+    prediction_ids = []
+    prediction_texts = []
+    prediction_start_chars = []
+    prediction_end_chars = []
 
     for example_index, example in enumerate(examples):
         feature_indices = features_per_example[example_index]
@@ -153,7 +156,9 @@ def postprocess_qa_predictions(
                     valid_answers.append(
                         {
                             "score": start_logits[start_index] + end_logits[end_index],
-                            "text": context[start_char: end_char]
+                            "text": context[start_char: end_char],
+                            "start": start_char,
+                            "end": end_char
                         }
                     )
 
@@ -161,9 +166,17 @@ def postprocess_qa_predictions(
             best_answer = sorted(valid_answers, key=lambda x: x["score"], reverse=True)[0]
         else:
             best_answer = {"text": "", "score": 0.0}
-        predictions[example["id"]] = best_answer["text"]
+        prediction_ids.append(example["id"])
+        prediction_texts.append(best_answer["text"])
+        prediction_start_chars.append(best_answer["start"])
+        prediction_end_chars.append(best_answer["end"])
 
-    return predictions
+    return pd.DataFrame({
+        "id": prediction_ids,
+        "PredictionString": prediction_texts,
+        "answer_start": prediction_start_chars,
+        "answer_end": prediction_end_chars
+    })
 
 
 def convert_answers(r):

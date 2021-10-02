@@ -82,7 +82,7 @@ def parse_args_inference() -> argparse.Namespace:
         required=False
     )
     parser.add_argument(
-        "--base_model_name",
+        "--model_name",
         type=str,
         default=None,
         required=False

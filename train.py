@@ -240,7 +240,7 @@ class Trainer:
             for ex in dataset
         ]
         res = pd.DataFrame(references)
-        res['prediction'] = res['id'].apply(lambda r: final_predictions[r])
+        res['prediction'] = final_predictions.PredictionString
         res["prediction"] = filter_pred_strings(res.prediction)
         res['jaccard'] = res[['answer', 'prediction']].apply(jaccard, axis=1)
         return res.jaccard.mean()
