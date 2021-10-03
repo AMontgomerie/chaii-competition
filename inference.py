@@ -72,9 +72,11 @@ if __name__ == "__main__":
             tokenizer
         )
         if config.model_name:
-            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.csv"
+            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}"
         else:
-            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.csv"
-        pred_df.to_csv(filename, index=False)
+            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}"
+        pred_df.to_csv(filename+".csv", index=False)
+        np.save(f"{filename}_start_logits.npy", start_logits)
+        np.save(f"{filename}_end_logits.npy", end_logits)
         del model
         gc.collect()
