@@ -101,7 +101,7 @@ class TorchModel(nn.Module):
 
         loss = None
         if start_logits is not None and end_logits is not None:
-            loss = self._loss_fn(start_logits, end_logits, start_positions, end_positions)
+            loss = self._loss_fn((start_logits, end_logits), (start_positions, end_positions))
 
         return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
 
