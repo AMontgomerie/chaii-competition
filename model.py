@@ -73,10 +73,9 @@ class AbhishekModel(nn.Module):
 class TorchModel(nn.Module):
     def __init__(self, model_name: str):
         super(TorchModel, self).__init__()
-        config = AutoConfig.from_pretrained(model_name)
-        self.xlm_roberta = AutoModel.from_pretrained(model_name, config=config)
-        self.qa_outputs = nn.Linear(config.hidden_size, 2)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.config = AutoConfig.from_pretrained(model_name)
+        self.xlm_roberta = AutoModel.from_pretrained(model_name, config=self.config)
+        self.qa_outputs = nn.Linear(self.config.hidden_size, 2)
         self._init_weights(self.qa_outputs)
 
     def _init_weights(self, module):
@@ -92,11 +91,7 @@ class TorchModel(nn.Module):
         start_positions: torch.Tensor = None,
         end_positions: torch.Tensor = None
     ):
-        outputs = self.xlm_roberta(
-            input_ids,
-            attention_mask=attention_mask,
-        )
-
+        outputs = self.xlm_roberta(input_ids, attention_mask)
         sequence_output = outputs[0]
         qa_logits = self.qa_outputs(sequence_output)
 
