@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoConfig, AutoModel
 from dataclasses import dataclass
+from typing import Tuple
 
 
 @dataclass
@@ -105,7 +106,11 @@ class TorchModel(nn.Module):
 
         return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
 
-    def _loss_fn(preds, labels):
+    def _loss_fn(
+        self,
+        preds: Tuple[torch.Tensor, torch.Tensor],
+        labels: Tuple[torch.Tensor, torch.Tensor]
+    ):
         start_preds, end_preds = preds
         start_labels, end_labels = labels
 
