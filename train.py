@@ -18,7 +18,7 @@ import collections
 from typing import Tuple
 from datasets.utils import disable_progress_bar
 
-from model import ChaiiModel
+from model import AbhishekModel, TorchModel
 from utils import AverageMeter, jaccard, seed_everything, parse_args_train
 from processing import (
     prepare_train_features,
@@ -288,8 +288,12 @@ class Trainer:
     ) -> nn.Module:
         if model_type == "hf":
             model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+        elif model_type == "abhishek":
+            model = AbhishekModel(model_name)
+        elif model_type == "torch":
+            model = TorchModel(model_name)
         else:
-            model = ChaiiModel(model_name)
+            raise ValueError(f"{model_type} is not a recognised model type.")
         if model_weights:
             print(f"Loading weights from {model_weights}")
             model.load_state_dict(torch.load(model_weights))
