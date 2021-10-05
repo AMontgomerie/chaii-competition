@@ -126,10 +126,12 @@ class Trainer:
                         with torch.cuda.amp.autocast():
                             output = self.model(**batch)
                         loss = output.loss
+                        loss = loss / self.accumulation_steps
                         self.scaler.scale(loss).backward()
                     else:
                         output = self.model(**batch)
                         loss = output.loss
+                        loss = loss / self.accumulation_steps
                         loss.backward()
                     if (step + 1) % self.accumulation_steps == 0:
                         if self.fp16:
