@@ -47,8 +47,7 @@ class Trainer:
         epochs: int = 1,
         train_batch_size: int = 4,
         valid_batch_size: int = 32,
-        evals_per_epoch: int = 0,
-        eval_on_first_step: bool = False,
+        eval_step: int = 1500,
         max_length: int = 384,
         max_answer_length: int = 30,
         doc_stride: int = 128,
@@ -87,14 +86,7 @@ class Trainer:
         total_steps = math.ceil(len(train_set) * epochs / train_batch_size / accumulation_steps)
         warmup_steps = total_steps * warmup
         self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
-        if evals_per_epoch > 0:
-            eval_interval = math.floor(len(train_set) / train_batch_size / evals_per_epoch)
-            first_eval = 0 if eval_on_first_step else eval_interval
-            self.eval_steps = [step for step in range(first_eval, total_steps, eval_interval)]
-            if len(self.eval_steps) == evals_per_epoch:
-                self.eval_steps = self.eval_steps[:-1]  # avoid double eval at end of epoch
-        else:
-            self.eval_steps = []
+        self.eval_step = eval_step
         self.accumulation_steps = accumulation_steps
         self.dataloader_workers = dataloader_workers
         self.fp16 = fp16
@@ -355,8 +347,7 @@ if __name__ == "__main__":
         epochs=config.epochs,
         train_batch_size=config.train_batch_size,
         valid_batch_size=config.valid_batch_size,
-        evals_per_epoch=config.evals_per_epoch,
-        eval_on_first_step=config.eval_on_first_step,
+        evals_step=config.eval_step,
         max_length=config.max_length,
         max_answer_length=config.max_answer_length,
         doc_stride=config.doc_stride,
