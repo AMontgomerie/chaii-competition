@@ -60,7 +60,7 @@ def parse_args_train():
     parser.add_argument("--max_length", type=int, default=384, required=False)
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--model_weights", type=str, default=None, required=False)
-    parser.add_argument("--model_type", type=str, default="default", required=False)
+    parser.add_argument("--model_type", type=str, default="hf", required=False)
     parser.add_argument("--save_path", type=str, default="../output", required=False)
     parser.add_argument("--scheduler", type=str, default="cosine", required=False)
     parser.add_argument("--seed", type=int, default=0, required=False)
