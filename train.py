@@ -135,7 +135,7 @@ class Trainer:
                         if self.scheduler:
                             self.scheduler.step()
                     loss_score.update(loss.item(), self.train_batch_size)
-                    if step in self.eval_steps:
+                    if step != 0 and step % self.eval_step == 0:
                         end = self.evaluate()
                     if end:
                         break
@@ -347,7 +347,7 @@ if __name__ == "__main__":
         epochs=config.epochs,
         train_batch_size=config.train_batch_size,
         valid_batch_size=config.valid_batch_size,
-        evals_step=config.eval_step,
+        eval_step=config.eval_step,
         max_length=config.max_length,
         max_answer_length=config.max_answer_length,
         doc_stride=config.doc_stride,
