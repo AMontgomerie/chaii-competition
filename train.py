@@ -84,11 +84,11 @@ class Trainer:
         self.early_stopping_counter = 0
         self.early_stopping_limit = early_stopping
         self.optimizer = self._make_optimizer(learning_rate, adam_epsilon, weight_decay)
-        total_steps = len(train_set) // train_batch_size // accumulation_steps * epochs
+        total_steps = math.ceil(len(train_set) / train_batch_size / accumulation_steps * epochs)
         warmup_steps = total_steps * warmup
         self.scheduler = get_scheduler(scheduler, self.optimizer, warmup_steps, total_steps)
         if evals_per_epoch > 0:
-            eval_interval = math.floor(total_steps / evals_per_epoch)
+            eval_interval = math.floor(total_steps / epochs / evals_per_epoch)
             first_eval = 0 if eval_on_first_step else eval_interval
             self.eval_steps = [step for step in range(first_eval, total_steps, eval_interval)]
             if len(self.eval_steps) == evals_per_epoch:
