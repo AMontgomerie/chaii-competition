@@ -102,9 +102,6 @@ class Trainer:
             self.scaler = torch.cuda.amp.GradScaler()
         self.pad_on_right = pad_on_right
 
-        print(self.eval_steps)
-        print(evals_per_epoch)
-
     def train(self) -> None:
         self.model.train()
         dataloader = DataLoader(
@@ -318,11 +315,11 @@ if __name__ == "__main__":
     if config.use_extra_data:
         extra_data = get_extra_data(config.extra_data_dir)
         train = pd.concat([train, extra_data])
-    train['answers'] = train[['answer_start', 'answer_text']].apply(
+    train['answers'] = train.loc[:, ['answer_start', 'answer_text']].apply(
         convert_answers,
         axis=1
     )
-    valid['answers'] = valid[['answer_start', 'answer_text']].apply(
+    valid['answers'] = valid.loc[:, ['answer_start', 'answer_text']].apply(
         convert_answers,
         axis=1
     )
