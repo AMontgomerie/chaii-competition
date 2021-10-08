@@ -152,14 +152,7 @@ class Trainer:
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
 
     def evaluate(self) -> bool:
-        valid_features_small = self.valid_features.map(
-            lambda example: example, remove_columns=['example_id', 'offset_mapping']
-        )
-        valid_features_small.set_format(
-            type='torch',
-            columns=["input_ids", "attention_mask"]
-        )
-        predictions = self.predict(valid_features_small)
+        predictions = self.predict(self.valid_features_small)
         self.current_jaccard = self._calculate_validation_jaccard(
             self.valid_set,
             self.valid_features,
@@ -214,6 +207,17 @@ class Trainer:
             batched=True,
             remove_columns=self.valid_set.column_names
         )
+        self.valid_features_small = self.valid_features.map(
+            lambda example: example, remove_columns=['example_id', 'offset_mapping']
+        )
+        self.valid_features_small.set_format(
+            type='torch',
+            columns=["input_ids", "attention_mask"]
+        )
+        self.example_id_to_index = {k: i for i, k in enumerate(self.valid_set["id"])}
+        features_per_example = collections.defaultdict(list)
+        for i, feature in enumerate(self.valid_features):
+            features_per_example[self.example_id_to_index[feature["example_id"]]].append(i)
 
     def _calculate_validation_jaccard(
         self,
@@ -221,11 +225,6 @@ class Trainer:
         features: Dataset,
         raw_predictions: Tuple[np.ndarray, np.ndarray],
     ) -> float:
-        example_id_to_index = {k: i for i, k in enumerate(dataset["id"])}
-        features_per_example = collections.defaultdict(list)
-        for i, feature in enumerate(features):
-            features_per_example[example_id_to_index[feature["example_id"]]].append(i)
-
         final_predictions = postprocess_qa_predictions(
             dataset,
             features,
