@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from transformers import AutoConfig, AutoModel
 from dataclasses import dataclass
-from typing import Tuple
 
 
 @dataclass
@@ -101,7 +100,7 @@ class TorchModel(nn.Module):
         end_logits = end_logits.squeeze(-1)
 
         loss = None
-        if start_logits is not None and end_logits is not None:
+        if start_positions is not None and end_positions is not None:
             loss = self._loss_fn(start_logits, end_logits, start_positions, end_positions)
 
         return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
