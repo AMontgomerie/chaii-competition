@@ -135,7 +135,7 @@ class Trainer:
                         self.optimizer.zero_grad()
                         if self.scheduler:
                             self.scheduler.step()
-                    loss_score.update(loss.item(), self.train_batch_size)
+                    loss_score.update(output.loss.item(), self.train_batch_size)
                     if step != 0 and step % self.eval_step == 0:
                         end = self.evaluate()
                     if end:
