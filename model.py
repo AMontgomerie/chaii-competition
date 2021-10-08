@@ -102,18 +102,17 @@ class TorchModel(nn.Module):
 
         loss = None
         if start_logits is not None and end_logits is not None:
-            loss = self._loss_fn((start_logits, end_logits), (start_positions, end_positions))
+            loss = self._loss_fn(start_logits, end_logits, start_positions, end_positions)
 
         return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
 
     def _loss_fn(
         self,
-        preds: Tuple[torch.Tensor, torch.Tensor],
-        labels: Tuple[torch.Tensor, torch.Tensor]
+        start_preds: torch.Tensor,
+        end_preds: torch.Tensor,
+        start_labels: torch.Tensor,
+        end_labels: torch.Tensor
     ):
-        start_preds, end_preds = preds
-        start_labels, end_labels = labels
-
         start_loss = nn.CrossEntropyLoss(ignore_index=-1)(start_preds, start_labels)
         end_loss = nn.CrossEntropyLoss(ignore_index=-1)(end_preds, end_labels)
         total_loss = (start_loss + end_loss) / 2
