@@ -67,6 +67,7 @@ class Trainer:
         self.fold = fold
         self.train_set = train_set
         self.valid_set = valid_set
+        self._prepare_validation_features()
         self.tokenizer = tokenizer
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -139,7 +140,7 @@ class Trainer:
                         end = self.evaluate()
                     if end:
                         break
-                    metrics = {"loss": loss_score.avg}
+                    metrics = {"loss": loss_score.avg, "lr": self.scheduler.get_lr()}
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
@@ -150,18 +151,7 @@ class Trainer:
             print(f"End of epoch {epoch} | Best Validation Jaccard {self.best_jaccard}")
 
     def evaluate(self) -> bool:
-        valid_features = self.valid_set.map(
-            prepare_validation_features,
-            fn_kwargs={
-                "tokenizer": self.tokenizer,
-                "pad_on_right": self.pad_on_right,
-                "max_length": self.max_length,
-                "doc_stride": self.doc_stride
-            },
-            batched=True,
-            remove_columns=self.valid_set.column_names
-        )
-        valid_features_small = valid_features.map(
+        valid_features_small = self.valid_features.map(
             lambda example: example, remove_columns=['example_id', 'offset_mapping']
         )
         valid_features_small.set_format(
@@ -171,7 +161,7 @@ class Trainer:
         predictions = self.predict(valid_features_small)
         self.current_jaccard = self._calculate_validation_jaccard(
             self.valid_set,
-            valid_features,
+            self.valid_features,
             predictions,
         )
         if self.current_jaccard > self.best_jaccard:
@@ -210,6 +200,19 @@ class Trainer:
             start_logits.append(output.start_logits.cpu().numpy())
             end_logits.append(output.end_logits.cpu().numpy())
         return np.vstack(start_logits), np.vstack(end_logits)
+
+    def _prepare_validation_features(self):
+        self.valid_features = self.valid_set.map(
+            prepare_validation_features,
+            fn_kwargs={
+                "tokenizer": self.tokenizer,
+                "pad_on_right": self.pad_on_right,
+                "max_length": self.max_length,
+                "doc_stride": self.doc_stride
+            },
+            batched=True,
+            remove_columns=self.valid_set.column_names
+        )
 
     def _calculate_validation_jaccard(
         self,
