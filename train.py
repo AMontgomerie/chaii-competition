@@ -58,7 +58,7 @@ class Trainer:
         early_stopping: int = 3,
         fp16: bool = False,
         accumulation_steps: int = 1,
-        dataloader_workers: int = 1,
+        dataloader_workers: int = 4,
         pad_on_right: bool = True,
         model_weights: str = None
     ) -> None:
@@ -140,7 +140,7 @@ class Trainer:
                         end = self.evaluate()
                     if end:
                         break
-                    lr = self.scheduler.get_last_lr()[0]
+                    lr = f"{self.scheduler.get_last_lr()[0]:0.3e}"
                     metrics = {"loss": loss_score.avg, "lr": lr}
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)

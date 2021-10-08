@@ -9,7 +9,7 @@ from datasets.utils import disable_progress_bar
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import gc
 
-from model import ChaiiModel
+from model import AbhishekModel, TorchModel
 from processing import prepare_validation_features, postprocess_qa_predictions
 from utils import parse_args_inference
 
@@ -17,12 +17,14 @@ disable_progress_bar()
 
 
 @torch.no_grad()
-def predict(model: nn.Module, dataset: Dataset) -> np.ndarray:
+def predict(model: nn.Module, dataset: Dataset, batch_size: int) -> np.ndarray:
     model.eval()
     dataloader = DataLoader(
         dataset,
         batch_size=config.batch_size,
-        shuffle=False
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True,
     )
     start_logits = []
     end_logits = []
@@ -35,47 +37,54 @@ def predict(model: nn.Module, dataset: Dataset) -> np.ndarray:
     return np.vstack(start_logits), np.vstack(end_logits)
 
 
+def make_model(model_name: str, model_type: str = "hf", model_weights: str = None) -> nn.Module:
+    if model_type == "hf":
+        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+    elif model_type == "abhishek":
+        model = AbhishekModel(model_name)
+    elif model_type == "torch":
+        model = TorchModel(model_name)
+    else:
+        raise ValueError(f"{model_type} is not a recognised model type.")
+    if model_weights:
+        print(f"Loading weights from {model_weights}")
+        model.load_state_dict(torch.load(model_weights))
+    return model
+
+
 if __name__ == "__main__":
     config = parse_args_inference()
     data = pd.read_csv(config.input_data)
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+    dataset = Dataset.from_pandas(data)
+    tokenized_dataset = dataset.map(
+        prepare_validation_features,
+        batched=True,
+        remove_columns=dataset.column_names,
+        fn_kwargs={"tokenizer": tokenizer}
+    )
+    input_dataset = tokenized_dataset.map(
+        lambda example: example, remove_columns=['example_id', 'offset_mapping']
+    )
+    input_dataset.set_format(type="torch")
 
     for fold in range(config.num_folds):
         print(f"Generating predictions for fold {fold}")
-        dataset = Dataset.from_pandas(data)
-        tokenized_dataset = dataset.map(
-            prepare_validation_features,
-            batched=True,
-            remove_columns=dataset.column_names,
-            fn_kwargs={"tokenizer": tokenizer}
-        )
-        input_dataset = tokenized_dataset.map(
-            lambda example: example, remove_columns=['example_id', 'offset_mapping']
-        )
-        input_dataset.set_format(type="torch")
-        if config.model_type == "hf":
-            model = AutoModelForQuestionAnswering.from_pretrained(config.base_model)
-        else:
-            model = ChaiiModel(config.base_model)
         if config.model_name:
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
         else:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
-        checkpoint = os.path.join(config.model_weights_dir, filename)
-        model.load_state_dict(torch.load(checkpoint))
+        checkpoint = os.path.join(config.model_weights_dir, f"{filename}.bin")
+        model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
-        start_logits, end_logits = predict(model, input_dataset)
+        start_logits, end_logits = predict(model, input_dataset, config.batch_size)
         pred_df = postprocess_qa_predictions(
             dataset,
             tokenized_dataset,
             (start_logits, end_logits),
             tokenizer
         )
-        if config.model_name:
-            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}"
-        else:
-            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}"
-        pred_df.to_csv(filename+".csv", index=False)
+        pred_df.to_csv(f"{filename}.csv", index=False)
         np.save(f"{filename}_start_logits.npy", start_logits)
         np.save(f"{filename}_end_logits.npy", end_logits)
         del model
