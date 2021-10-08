@@ -94,6 +94,7 @@ class Trainer:
             self.scaler = torch.cuda.amp.GradScaler()
         self.pad_on_right = pad_on_right
         self._prepare_validation_features()
+        self.loss_score = AverageMeter()
 
     def train(self) -> None:
         self.model.train()
@@ -106,7 +107,7 @@ class Trainer:
             collate_fn=default_data_collator
         )
         for epoch in range(1, self.epochs + 1):
-            loss_score = AverageMeter()
+            self.loss_score.reset()
             self.optimizer.zero_grad()
             end = False
 
@@ -135,13 +136,14 @@ class Trainer:
                         self.optimizer.zero_grad()
                         if self.scheduler:
                             self.scheduler.step()
-                    loss_score.update(output.loss.item(), self.train_batch_size)
+                    self.loss_score.update(output.loss.item(), self.train_batch_size)
                     if step != 0 and step % self.eval_step == 0:
                         end = self.evaluate()
+                        self.loss_score.reset()
                     if end:
                         break
                     lr = f"{self.scheduler.get_last_lr()[0]:0.3e}"
-                    metrics = {"loss": loss_score.avg, "lr": lr}
+                    metrics = {"loss": self.loss_score.avg, "lr": lr}
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
 
