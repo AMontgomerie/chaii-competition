@@ -67,7 +67,6 @@ class Trainer:
         self.fold = fold
         self.train_set = train_set
         self.valid_set = valid_set
-        self._prepare_validation_features()
         self.tokenizer = tokenizer
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -94,6 +93,7 @@ class Trainer:
         if self.fp16:
             self.scaler = torch.cuda.amp.GradScaler()
         self.pad_on_right = pad_on_right
+        self._prepare_validation_features()
 
     def train(self) -> None:
         self.model.train()
