@@ -140,7 +140,7 @@ class Trainer:
                         end = self.evaluate()
                     if end:
                         break
-                    lr = self.scheduler.get_last_lr()
+                    lr = self.scheduler.get_last_lr()[0]
                     metrics = {"loss": loss_score.avg, "lr": lr}
                     tepoch.set_postfix(metrics)
                     tepoch.update(1)
