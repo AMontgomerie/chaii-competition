@@ -9,14 +9,13 @@ from datasets.utils import disable_progress_bar
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import gc
 
-from model import ChaiiModel
+from model import AbhishekModel, TorchModel
 from processing import (
     prepare_validation_features,
     postprocess_qa_predictions,
     filter_pred_strings
 )
 from utils import jaccard, parse_args_inference
-
 
 disable_progress_bar()
 
@@ -38,6 +37,21 @@ def predict(model: nn.Module, dataset: Dataset) -> np.ndarray:
         start_logits.append(output.start_logits.cpu().numpy())
         end_logits.append(output.end_logits.cpu().numpy())
     return np.vstack(start_logits), np.vstack(end_logits)
+
+
+def make_model(model_name: str, model_type: str = "hf", model_weights: str = None) -> nn.Module:
+    if model_type == "hf":
+        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+    elif model_type == "abhishek":
+        model = AbhishekModel(model_name)
+    elif model_type == "torch":
+        model = TorchModel(model_name)
+    else:
+        raise ValueError(f"{model_type} is not a recognised model type.")
+    if model_weights:
+        print(f"Loading weights from {model_weights}")
+        model.load_state_dict(torch.load(model_weights))
+    return model
 
 
 def get_mean_oof(df: pd.DataFrame) -> float:
@@ -65,10 +79,7 @@ if __name__ == "__main__":
             lambda example: example, remove_columns=['example_id', 'offset_mapping']
         )
         input_dataset.set_format(type="torch")
-        if config.model_type == "hf":
-            model = AutoModelForQuestionAnswering.from_pretrained(config.base_model)
-        else:
-            model = ChaiiModel(config.base_model)
+        model = make_model(config.base_model)
         if config.model_name is None:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
         else:
