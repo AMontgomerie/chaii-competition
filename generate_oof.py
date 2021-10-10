@@ -79,13 +79,12 @@ if __name__ == "__main__":
             lambda example: example, remove_columns=['example_id', 'offset_mapping']
         )
         input_dataset.set_format(type="torch")
-        model = make_model(config.base_model)
         if config.model_name is None:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
         else:
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
         checkpoint = os.path.join(config.model_weights_dir, filename)
-        model.load_state_dict(torch.load(checkpoint))
+        model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
         start_logits, end_logits = predict(model, input_dataset)
         preds_df = postprocess_qa_predictions(
