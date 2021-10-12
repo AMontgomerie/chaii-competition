@@ -71,9 +71,9 @@ if __name__ == "__main__":
     for fold in range(config.num_folds):
         print(f"Generating predictions for fold {fold}")
         if config.model_name:
-            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
+            filename = f"{config.model_name.replace('/', '-')}_fold_{fold}"
         else:
-            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
+            filename = f"{config.base_model.replace('/', '-')}_fold_{fold}"
         checkpoint = os.path.join(config.model_weights_dir, f"{filename}.bin")
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
