@@ -55,7 +55,7 @@ if __name__ == "__main__":
         epochs=config.epochs,
         train_batch_size=config.train_batch_size,
         valid_batch_size=config.valid_batch_size,
-        evals_per_epoch=config.evals_per_epoch,
+        eval_step=config.eval_step,
         max_length=config.max_length,
         max_answer_length=config.max_answer_length,
         doc_stride=config.doc_stride,
