@@ -13,6 +13,8 @@ from model import AbhishekModel, TorchModel
 from processing import prepare_validation_features, postprocess_qa_predictions
 from utils import parse_args_inference
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 disable_progress_bar()
 
 
