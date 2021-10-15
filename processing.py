@@ -165,7 +165,7 @@ def postprocess_qa_predictions(
         if len(valid_answers) > 0:
             best_answer = sorted(valid_answers, key=lambda x: x["score"], reverse=True)[0]
         else:
-            best_answer = {"text": "", "score": 0.0}
+            best_answer = {"text": "", "score": 0.0, "start": 0, "end": 0}
         prediction_ids.append(example["id"])
         prediction_texts.append(best_answer["text"])
         prediction_start_chars.append(best_answer["start"])
