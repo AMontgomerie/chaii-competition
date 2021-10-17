@@ -19,13 +19,18 @@ disable_progress_bar()
 
 
 @torch.no_grad()
-def predict(model: nn.Module, dataset: Dataset, batch_size: int) -> np.ndarray:
+def predict(
+    model: nn.Module,
+    dataset: Dataset,
+    batch_size: int = 64,
+    workers: int = 4
+) -> np.ndarray:
     model.eval()
     dataloader = DataLoader(
         dataset,
-        batch_size=config.batch_size,
+        batch_size=batch_size,
         shuffle=False,
-        num_workers=4,
+        num_workers=workers,
         pin_memory=True,
     )
     start_logits = []
@@ -79,7 +84,12 @@ if __name__ == "__main__":
         checkpoint = os.path.join(config.model_weights_dir, f"{filename}.bin")
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
-        start_logits, end_logits = predict(model, input_dataset, config.batch_size)
+        start_logits, end_logits = predict(
+            model,
+            input_dataset,
+            config.batch_size,
+            config.dataloader_workers
+        )
         pred_df = postprocess_qa_predictions(
             dataset,
             tokenized_dataset,
@@ -91,3 +101,4 @@ if __name__ == "__main__":
         np.save(f"{filename}_end_logits.npy", end_logits)
         del model
         gc.collect()
+        torch.cuda.empty_cache()

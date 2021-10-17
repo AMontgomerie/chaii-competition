@@ -45,7 +45,7 @@ def parse_args_train():
     parser = argparse.ArgumentParser()
     parser.add_argument("--accumulation_steps", type=int, default=1, required=False)
     parser.add_argument("--adam_epsilon", type=float, default=1e-8, required=False)
-    parser.add_argument("--dataloader_workers", type=int, default=8, required=False)
+    parser.add_argument("--dataloader_workers", type=int, default=4, required=False)
     parser.add_argument("--data_path", type=str, default="train_folds_5.csv", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--early_stopping", type=int, default=3, required=False)
@@ -86,6 +86,7 @@ def parse_args_inference() -> argparse.Namespace:
         default=None,
         required=False
     )
+    parser.add_argument("--dataloader_workers", type=int, default=4, required=False)
     parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--input_data", type=str, default="train_folds_5.csv", required=False)
