@@ -84,6 +84,8 @@ if __name__ == "__main__":
         checkpoint = os.path.join(config.model_weights_dir, f"{filename}.bin")
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
+        if config.fp16:
+            model = model.half()
         start_logits, end_logits = predict(
             model,
             input_dataset,

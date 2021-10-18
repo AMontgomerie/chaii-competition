@@ -80,18 +80,14 @@ def parse_args_inference() -> argparse.Namespace:
         default="deepset/xlm-roberta-large-squad2",
         required=False
     )
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default=None,
-        required=False
-    )
     parser.add_argument("--dataloader_workers", type=int, default=4, required=False)
     parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
     parser.add_argument("--input_data", type=str, default="train_folds_5.csv", required=False)
+    parser.add_argument("--fp16", dest="fp16", action="store_true")
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)
     parser.add_argument("--max_length", type=int, default=384, required=False)
+    parser.add_argument("--model_name", type=str, default=None, required=False)
     parser.add_argument("--model_type", type=str, default="default", required=False)
     parser.add_argument("--model_weights_dir", type=str, required=True)
     parser.add_argument("--num_folds", type=int, default=5, required=False)
