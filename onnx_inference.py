@@ -12,6 +12,8 @@ import onnxruntime
 from utils import parse_args_inference
 from processing import prepare_validation_features, postprocess_qa_predictions
 
+onnxruntime.set_default_logger_severity(3)
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 disable_progress_bar()
