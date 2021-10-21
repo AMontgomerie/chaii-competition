@@ -44,8 +44,8 @@ def predict(
 
 def get_ort_model_prediction(session, inputs):
     inputs = (
-        inputs["input_ids"].numpy(),
-        inputs["attention_mask"].numpy(),
+        inputs["input_ids"],
+        inputs["attention_mask"],
     )
     ort_inputs = {
         session.get_inputs()[i].name: inputs[i]
@@ -80,8 +80,7 @@ if __name__ == "__main__":
     input_dataset = tokenized_dataset.map(
         lambda example: example, remove_columns=['example_id', 'offset_mapping']
     )
-    input_dataset.set_format(type="torch")
-
+    input_dataset.set_format(type="numpy")
     if len(config.select_folds) > 0:
         folds = [int(fold) for fold in config.select_folds]
     else:
