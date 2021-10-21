@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch import autocast
+from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from datasets.utils import disable_progress_bar
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
         if config.fp16:
-            with autocast(device_type=config.device):
+            with autocast():
                 start_logits, end_logits = predict(
                     model,
                     input_dataset,
