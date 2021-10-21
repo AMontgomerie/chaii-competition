@@ -1,12 +1,13 @@
 import argparse
 import gc
 import torch.onnx
+import torch
 import onnxruntime
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, required=True)
     parser.add_argument("--fold", type=int, required=True)
@@ -16,8 +17,13 @@ def parse_args():
     return config
 
 
-def export(torch_model, inputs, fold, has_token_type_ids=False):
-    onnx_model_path = f"onnx-muril/fold_{fold}.onnx"
+def export(
+    torch_model: torch.nn.Module,
+    inputs: torch.Tensor,
+    fold: int,
+    has_token_type_ids: bool = False
+) -> None:
+    onnx_model_path = f"onnx-muril/fold_{fold}/model.onnx"
     axes = {
         'input_ids': {0: 'batch', 1: 'sequence'},
         'attention_mask': {0: 'batch', 1: 'sequence'},
@@ -43,8 +49,8 @@ def export(torch_model, inputs, fold, has_token_type_ids=False):
     print(f"Exported fold {fold}!")
 
 
-def validate(fold):
-    onnx_model_path = f"onnx-muril/fold_{fold}.onnx"
+def validate(fold: int, inputs: torch.Tensor, torch_out: torch.Tensor) -> None:
+    onnx_model_path = f"onnx-muril/fold_{fold}/model.onnx"
     ort_session = onnxruntime.InferenceSession(
         onnx_model_path,
         providers=["CUDAExecutionProvider"]
@@ -86,7 +92,7 @@ if __name__ == "__main__":
     torch_model.eval()
     torch_out = torch_model(*inputs)
     export(torch_model, inputs, config.fold, has_token_type_ids=config.token_type_ids)
-    validate(config.fold)
+    validate(config.fold, inputs, torch_out)
     del torch_model
     torch.cuda.empty_cache()
     gc.collect()
