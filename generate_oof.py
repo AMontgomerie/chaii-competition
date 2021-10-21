@@ -17,6 +17,8 @@ from processing import (
 )
 from utils import jaccard, parse_args_inference
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 disable_progress_bar()
 
 

@@ -29,8 +29,9 @@ from processing import (
 )
 from data import get_extra_data
 
-disable_progress_bar()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+disable_progress_bar()
 
 
 class Trainer:
