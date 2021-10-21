@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from torch import autocast
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from datasets.utils import disable_progress_bar
@@ -23,7 +24,8 @@ def predict(
     model: nn.Module,
     dataset: Dataset,
     batch_size: int = 64,
-    workers: int = 4
+    workers: int = 4,
+    device: str = "cuda"
 ) -> np.ndarray:
     model.eval()
     dataloader = DataLoader(
@@ -36,8 +38,8 @@ def predict(
     start_logits = []
     end_logits = []
     for batch in dataloader:
-        input_ids = batch["input_ids"].to(config.device)
-        attention_mask = batch["attention_mask"].to(config.device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
         output = model(input_ids, attention_mask)
         start_logits.append(output.start_logits.cpu().numpy())
         end_logits.append(output.end_logits.cpu().numpy())
@@ -90,13 +92,22 @@ if __name__ == "__main__":
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
         if config.fp16:
-            model = model.half()
-        start_logits, end_logits = predict(
-            model,
-            input_dataset,
-            config.batch_size,
-            config.dataloader_workers
-        )
+            with autocast(device_type=config.device):
+                start_logits, end_logits = predict(
+                    model,
+                    input_dataset,
+                    config.batch_size,
+                    config.dataloader_workers,
+                    config.device
+                )
+        else:
+            start_logits, end_logits = predict(
+                model,
+                input_dataset,
+                config.batch_size,
+                config.dataloader_workers,
+                config.device
+            )
         pred_df = postprocess_qa_predictions(
             dataset,
             tokenized_dataset,
