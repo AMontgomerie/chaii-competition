@@ -75,7 +75,12 @@ if __name__ == "__main__":
     )
     input_dataset.set_format(type="torch")
 
-    for fold in range(config.num_folds):
+    if len(config.select_folds) > 0:
+        folds = [int(fold) for fold in config.select_folds]
+    else:
+        folds = range(config.num_folds)
+
+    for fold in folds:
         print(f"Generating predictions for fold {fold}")
         if config.model_name:
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}"

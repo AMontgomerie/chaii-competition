@@ -80,6 +80,7 @@ def parse_args_inference() -> argparse.Namespace:
         default="deepset/xlm-roberta-large-squad2",
         required=False
     )
+    parser.add_argument("--batch_size", type=int, default=64, required=False)
     parser.add_argument("--dataloader_workers", type=int, default=4, required=False)
     parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--doc_stride", type=int, default=128, required=False)
@@ -92,5 +93,5 @@ def parse_args_inference() -> argparse.Namespace:
     parser.add_argument("--model_weights_dir", type=str, required=True)
     parser.add_argument("--num_folds", type=int, default=5, required=False)
     parser.add_argument("--save_dir", type=str, default="", required=False)
-    parser.add_argument("--batch_size", type=int, default=64, required=False)
+    parser.add_argument("--select_folds", nargs="+", default=[])
     return parser.parse_args()
