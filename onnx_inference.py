@@ -91,7 +91,7 @@ if __name__ == "__main__":
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}"
         else:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}"
-        onnx_model_path = f"{config.weights_dir}/fold_{fold}/model.onnx"
+        onnx_model_path = f"{config.model_weights_dir}/fold_{fold}/model.onnx"
         ort_model = get_ort_model(onnx_model_path)
         start_logits, end_logits = predict(
             ort_model,
