@@ -82,6 +82,7 @@ if __name__ == "__main__":
         lambda example: example, remove_columns=['example_id', 'offset_mapping']
     )
     input_dataset.set_format(type="numpy")
+    print(input_dataset)
     if len(config.select_folds) > 0:
         folds = [int(fold) for fold in config.select_folds]
     else:
