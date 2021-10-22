@@ -64,3 +64,4 @@ if __name__ == "__main__":
             f"torchscript_{config.base_model.replace('/', '-')}_fold_{fold}.pt"
         )
         export_to_torchscript(config.base_model, model_weights, save_path, dummy_input)
+        gc.collect()
