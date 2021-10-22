@@ -1,3 +1,4 @@
+import gc
 import argparse
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 import torch
@@ -28,6 +29,8 @@ def export_to_torchscript(
     traced_model = torch.jit.trace(model, dummy_input)
     torch.jit.save(traced_model, save_path)
     print(f"Saved {save_path}")
+    del model
+    gc.collect()
 
 
 def get_dummy_input(base_model: str, example_text: str) -> Tuple[torch.Tensor, torch.Tensor]:
