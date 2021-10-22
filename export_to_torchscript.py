@@ -10,6 +10,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, required=True)
     parser.add_argument("--data_dir", type=str, default="train_folds_10.csv", required=False)
+    parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--fold", type=int, required=True)
     parser.add_argument("--save_dir", type=str, default=".", required=False)
     parser.add_argument("--weights_dir", type=str, required=True)
@@ -20,18 +21,24 @@ def export_to_torchscript(
     base_model: str,
     model_weights: str,
     save_path: str,
-    dummy_input: str
+    dummy_input: str,
+    device: str = "cuda"
 ) -> None:
     model = AutoModelForQuestionAnswering.from_pretrained(base_model, torchscript=True)
     state_dict = torch.load(model_weights, map_location=torch.device('cpu'))
     model.load_state_dict(state_dict)
+    model.to(device)
     model.eval()
     traced_model = torch.jit.trace(model, dummy_input)
     torch.jit.save(traced_model, save_path)
     print(f"Saved {save_path}")
 
 
-def get_dummy_input(base_model: str, example_text: str) -> Tuple[torch.Tensor, torch.Tensor]:
+def get_dummy_input(
+    base_model: str,
+    example_text: str,
+    device: str = "cuda"
+) -> Tuple[torch.Tensor, torch.Tensor]:
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     dummy_input = tokenizer(
         example_text,
@@ -41,8 +48,8 @@ def get_dummy_input(base_model: str, example_text: str) -> Tuple[torch.Tensor, t
         padding=True
     )
     return (
-        dummy_input["input_ids"],
-        dummy_input["attention_mask"]
+        dummy_input["input_ids"].to(device),
+        dummy_input["attention_mask"].to(device)
     )
 
 
@@ -50,7 +57,7 @@ if __name__ == "__main__":
     config = parse_args()
     train_data = pd.read_csv(config.data_dir)
     example_text = train_data.loc[0].context
-    dummy_input = get_dummy_input(config.base_model, example_text)
+    dummy_input = get_dummy_input(config.base_model, example_text, config.device)
     model_weights = os.path.join(
         config.weights_dir,
         f"{config.base_model.replace('/', '-')}_fold_{config.fold}.bin"
@@ -59,4 +66,10 @@ if __name__ == "__main__":
         config.save_dir,
         f"torchscript_{config.base_model.replace('/', '-')}_fold_{config.fold}.pt"
     )
-    export_to_torchscript(config.base_model, model_weights, save_path, dummy_input)
+    export_to_torchscript(
+        config.base_model,
+        model_weights,
+        save_path,
+        dummy_input,
+        config.device
+    )
