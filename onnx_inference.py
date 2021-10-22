@@ -44,10 +44,9 @@ def predict(
 
 def get_ort_model_prediction(session, inputs):
     inputs = (
-        inputs["input_ids"],
-        inputs["attention_mask"],
+        inputs["input_ids"].numpy(),
+        inputs["attention_mask"].numpy(),
     )
-    print(inputs)
     ort_inputs = {
         session.get_inputs()[i].name: inputs[i]
         for i in range(len(session.get_inputs()))
@@ -82,7 +81,6 @@ if __name__ == "__main__":
         lambda example: example, remove_columns=['example_id', 'offset_mapping']
     )
     input_dataset.set_format(type="numpy")
-    print(input_dataset)
     if len(config.select_folds) > 0:
         folds = [int(fold) for fold in config.select_folds]
     else:
