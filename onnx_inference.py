@@ -47,6 +47,7 @@ def get_ort_model_prediction(session, inputs):
         inputs["input_ids"],
         inputs["attention_mask"],
     )
+    print(inputs)
     ort_inputs = {
         session.get_inputs()[i].name: inputs[i]
         for i in range(len(session.get_inputs()))
