@@ -20,9 +20,8 @@ def export_to_torchscript(
     base_model: str,
     model_weights: str,
     save_path: str,
-    example_text: str
+    dummy_input: str
 ) -> None:
-    dummy_input = get_dummy_input(base_model, example_text)
     model = AutoModelForQuestionAnswering.from_pretrained(base_model, torchscript=True)
     model.load_state_dict(torch.load(model_weights, map_location=torch.device('cpu')))
     model.eval()
@@ -50,7 +49,8 @@ if __name__ == "__main__":
     config = parse_args()
     train_data = pd.read_csv(config.data_dir)
     example_text = train_data.loc[0].context
+    dummy_input = get_dummy_input(config.base_model, example_text)
     for fold in range(10):
         model_weights = os.path.join(config.weights_dir, f"{config.base_model}_fold_{fold}.bin")
         save_path = os.path.join(config.save_dir, f"torchscript_{config.base_model}_fold_{fold}.pt")
-        export_to_torchscript(config.base_model, model_weights, save_path, example_text)
+        export_to_torchscript(config.base_model, model_weights, save_path, dummy_input)
