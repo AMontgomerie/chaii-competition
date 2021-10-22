@@ -7,10 +7,9 @@ from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from datasets.utils import disable_progress_bar
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+from transformers import AutoTokenizer
 import gc
 
-from model import AbhishekModel, TorchModel
 from processing import prepare_validation_features, postprocess_qa_predictions
 from utils import parse_args_inference
 
