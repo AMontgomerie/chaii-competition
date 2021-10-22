@@ -24,12 +24,13 @@ def export_to_torchscript(
     dummy_input: str
 ) -> None:
     model = AutoModelForQuestionAnswering.from_pretrained(base_model, torchscript=True)
-    model.load_state_dict(torch.load(model_weights, map_location=torch.device('cpu')))
+    state_dict = torch.load(model_weights, map_location=torch.device('cpu'))
+    model.load_state_dict(state_dict)
     model.eval()
     traced_model = torch.jit.trace(model, dummy_input)
     torch.jit.save(traced_model, save_path)
     print(f"Saved {save_path}")
-    del model
+    del model, state_dict
     gc.collect()
 
 
