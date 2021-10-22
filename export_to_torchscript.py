@@ -25,7 +25,7 @@ def export_to_torchscript(
     device: str = "cuda"
 ) -> None:
     model = AutoModelForQuestionAnswering.from_pretrained(base_model, torchscript=True)
-    state_dict = torch.load(model_weights, map_location=torch.device('cpu'))
+    state_dict = torch.load(model_weights, map_location=torch.device(device))
     model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
