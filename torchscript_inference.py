@@ -40,8 +40,8 @@ def predict(
         input_ids = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
         output = model(input_ids, attention_mask)
-        start_logits.append(output.start_logits.cpu().numpy())
-        end_logits.append(output.end_logits.cpu().numpy())
+        start_logits.append(output[0].cpu().numpy())
+        end_logits.append(output[1].cpu().numpy())
     return np.vstack(start_logits), np.vstack(end_logits)
 
 
