@@ -89,7 +89,7 @@ def parse_args_inference() -> argparse.Namespace:
     parser.add_argument("--max_answer_length", type=int, default=30, required=False)
     parser.add_argument("--max_length", type=int, default=384, required=False)
     parser.add_argument("--model_name", type=str, default=None, required=False)
-    parser.add_argument("--model_type", type=str, default="default", required=False)
+    parser.add_argument("--model_type", type=str, default="hf", required=False)
     parser.add_argument("--model_weights_dir", type=str, required=True)
     parser.add_argument("--num_folds", type=int, default=5, required=False)
     parser.add_argument("--save_dir", type=str, default="", required=False)
