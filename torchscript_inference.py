@@ -75,32 +75,24 @@ if __name__ == "__main__":
         checkpoint = os.path.join(config.model_weights_dir, f"{filename}.pt")
         model = torch.jit.load(checkpoint)
         model.to(config.device)
-        if config.fp16:
-            with autocast():
-                start_logits, end_logits = predict(
-                    model,
-                    input_dataset,
-                    config.batch_size,
-                    config.dataloader_workers,
-                    config.device
-                )
-        else:
-            start_logits, end_logits = predict(
-                model,
-                input_dataset,
-                config.batch_size,
-                config.dataloader_workers,
-                config.device
-            )
-        pred_df = postprocess_qa_predictions(
-            dataset,
-            tokenized_dataset,
-            (start_logits, end_logits),
-            tokenizer
+        start_logits, end_logits = predict(
+            model,
+            input_dataset,
+            config.batch_size,
+            config.dataloader_workers,
+            config.device
         )
-        pred_df.to_csv(f"{filename}.csv", index=False)
-        np.save(f"{filename}_start_logits.npy", start_logits)
-        np.save(f"{filename}_end_logits.npy", end_logits)
+        if config.output_csv:
+            pred_df = postprocess_qa_predictions(
+                dataset,
+                tokenized_dataset,
+                (start_logits, end_logits),
+                tokenizer
+            )
+            pred_df.to_csv(f"{filename}.csv", index=False)
+        if config.output_logits:
+            np.save(f"{filename}_start_logits.npy", start_logits)
+            np.save(f"{filename}_end_logits.npy", end_logits)
         del model
         gc.collect()
         torch.cuda.empty_cache()

@@ -100,15 +100,17 @@ if __name__ == "__main__":
             config.batch_size,
             config.dataloader_workers
         )
-        pred_df = postprocess_qa_predictions(
-            dataset,
-            tokenized_dataset,
-            (start_logits, end_logits),
-            tokenizer
-        )
-        pred_df.to_csv(f"{filename}.csv", index=False)
-        np.save(f"{filename}_start_logits.npy", start_logits)
-        np.save(f"{filename}_end_logits.npy", end_logits)
+        if config.output_csv:
+            pred_df = postprocess_qa_predictions(
+                dataset,
+                tokenized_dataset,
+                (start_logits, end_logits),
+                tokenizer
+            )
+            pred_df.to_csv(f"{filename}.csv", index=False)
+        if config.output_logits:
+            np.save(f"{filename}_start_logits.npy", start_logits)
+            np.save(f"{filename}_end_logits.npy", end_logits)
         del ort_model
         gc.collect()
         torch.cuda.empty_cache()
