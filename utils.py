@@ -94,6 +94,6 @@ def parse_args_inference() -> argparse.Namespace:
     parser.add_argument("--output_csv", dest="output_csv", action="store_true")
     parser.add_argument("--output_logits", dest="output_logits", action="store_true")
     parser.add_argument("--num_folds", type=int, default=5, required=False)
-    parser.add_argument("--save_dir", type=str, default="", required=False)
+    parser.add_argument("--save_dir", type=str, default=".", required=False)
     parser.add_argument("--select_folds", nargs="+", default=[])
     return parser.parse_args()
