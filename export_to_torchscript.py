@@ -70,6 +70,7 @@ if __name__ == "__main__":
     )
     export_to_torchscript(
         config.base_model,
+        config.model_type,
         model_weights,
         save_path,
         dummy_input,
