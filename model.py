@@ -149,6 +149,8 @@ def make_model(
         model = AbhishekModel(model_name)
     elif model_type == "torch":
         model = TorchModel(model_name)
+    elif model_type == "tts":
+        model = TTSModel(model_name)
     else:
         raise ValueError(f"{model_type} is not a recognised model type.")
     if model_weights:
