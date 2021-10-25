@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from datasets.utils import disable_progress_bar

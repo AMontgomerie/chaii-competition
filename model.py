@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import AutoConfig, AutoModel
+from transformers import AutoConfig, AutoModel, AutoModelForQuestionAnswering
 from dataclasses import dataclass
 
 
@@ -116,3 +116,24 @@ class TorchModel(nn.Module):
         end_loss = nn.CrossEntropyLoss(ignore_index=-1)(end_preds, end_labels)
         total_loss = (start_loss + end_loss) / 2
         return total_loss
+
+
+def make_model(
+    model_name: str,
+    model_type: str = "hf",
+    model_weights: str = None,
+    device: str = "cuda"
+) -> nn.Module:
+    if model_type == "hf":
+        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+    elif model_type == "abhishek":
+        model = AbhishekModel(model_name)
+    elif model_type == "torch":
+        model = TorchModel(model_name)
+    else:
+        raise ValueError(f"{model_type} is not a recognised model type.")
+    if model_weights:
+        print(f"Loading weights from {model_weights}")
+        model.load_state_dict(torch.load(model_weights, map_location=torch.device(device)))
+    model.to(device)
+    return model

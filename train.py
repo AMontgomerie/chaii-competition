@@ -6,19 +6,14 @@ from datasets import Dataset
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from transformers import (
-    AdamW,
-    AutoTokenizer,
-    AutoModelForQuestionAnswering,
-    get_scheduler
-)
+from transformers import AdamW, AutoTokenizer, get_scheduler
 from transformers.data.data_collator import default_data_collator
 from tqdm import tqdm
 import collections
 from typing import Tuple
 from datasets.utils import disable_progress_bar
 
-from model import AbhishekModel, TorchModel
+from model import make_model
 from utils import AverageMeter, jaccard, seed_everything, parse_args_train
 from processing import (
     prepare_train_features,
@@ -42,7 +37,7 @@ class Trainer:
         train_set: Dataset,
         valid_set: Dataset,
         tokenizer: AutoTokenizer,
-        model_type: str = "default",
+        model_type: str = "hf",
         learning_rate: float = 3e-5,
         weight_decay: float = 0.1,
         epochs: int = 1,
@@ -63,7 +58,7 @@ class Trainer:
         pad_on_right: bool = True,
         model_weights: str = None
     ) -> None:
-        self.model = self._make_model(model_name, model_type, model_weights)
+        self.model = make_model(model_name, model_type, model_weights)
         self.model.to("cuda")
         self.fold = fold
         self.train_set = train_set
@@ -279,25 +274,6 @@ class Trainer:
             eps=adam_epsilon,
             correct_bias=True
         )
-
-    def _make_model(
-        self,
-        model_name: str,
-        model_type: str = "hf",
-        model_weights: str = None
-    ) -> nn.Module:
-        if model_type == "hf":
-            model = AutoModelForQuestionAnswering.from_pretrained(model_name)
-        elif model_type == "abhishek":
-            model = AbhishekModel(model_name)
-        elif model_type == "torch":
-            model = TorchModel(model_name)
-        else:
-            raise ValueError(f"{model_type} is not a recognised model type.")
-        if model_weights:
-            print(f"Loading weights from {model_weights}")
-            model.load_state_dict(torch.load(model_weights))
-        return model
 
 
 if __name__ == "__main__":

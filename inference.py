@@ -7,10 +7,10 @@ from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from datasets import Dataset
 from datasets.utils import disable_progress_bar
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+from transformers import AutoTokenizer
 import gc
 
-from model import AbhishekModel, TorchModel
+from model import make_model
 from processing import prepare_validation_features, postprocess_qa_predictions
 from utils import parse_args_inference
 
@@ -46,21 +46,6 @@ def predict(
     return np.vstack(start_logits), np.vstack(end_logits)
 
 
-def make_model(model_name: str, model_type: str = "hf", model_weights: str = None) -> nn.Module:
-    if model_type == "hf":
-        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
-    elif model_type == "abhishek":
-        model = AbhishekModel(model_name)
-    elif model_type == "torch":
-        model = TorchModel(model_name)
-    else:
-        raise ValueError(f"{model_type} is not a recognised model type.")
-    if model_weights:
-        print(f"Loading weights from {model_weights}")
-        model.load_state_dict(torch.load(model_weights))
-    return model
-
-
 if __name__ == "__main__":
     config = parse_args_inference()
     data = pd.read_csv(config.input_data)
@@ -89,8 +74,12 @@ if __name__ == "__main__":
         else:
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}"
         checkpoint = os.path.join(config.model_weights_dir, f"{filename}.bin")
-        model = make_model(config.base_model, config.model_type, checkpoint)
-        model.to(config.device)
+        model = make_model(
+            config.base_model,
+            config.model_type,
+            checkpoint,
+            config.device
+        )
         if config.fp16:
             with autocast():
                 start_logits, end_logits = predict(

@@ -5,6 +5,8 @@ import pandas as pd
 from typing import Tuple
 import os
 
+from model import make_model
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -12,6 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data_dir", type=str, default="train_folds_10.csv", required=False)
     parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--fold", type=int, required=True)
+    parser.add_argument("--model_type", type=str, default="hf", required=False)
     parser.add_argument("--save_dir", type=str, default=".", required=False)
     parser.add_argument("--weights_dir", type=str, required=True)
     return parser.parse_args()
@@ -19,15 +22,14 @@ def parse_args() -> argparse.Namespace:
 
 def export_to_torchscript(
     base_model: str,
+    model_type: str,
     model_weights: str,
     save_path: str,
     dummy_input: str,
     device: str = "cuda"
 ) -> None:
     model = AutoModelForQuestionAnswering.from_pretrained(base_model, torchscript=True)
-    state_dict = torch.load(model_weights, map_location=torch.device(device))
-    model.load_state_dict(state_dict)
-    model.to(device)
+    model = make_model(base_model, model_type, model_weights, device)
     model.eval()
     traced_model = torch.jit.trace(model, dummy_input)
     torch.jit.save(traced_model, save_path)
