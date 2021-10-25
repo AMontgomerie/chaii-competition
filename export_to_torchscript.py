@@ -86,5 +86,6 @@ if __name__ == "__main__":
         model_weights,
         save_path,
         dummy_input,
+        config.export_type,
         config.device
     )
