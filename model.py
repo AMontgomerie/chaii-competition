@@ -72,14 +72,15 @@ class AbhishekModel(nn.Module):
 
 
 class TorchModel(nn.Module):
-    def __init__(self, model_name: str) -> None:
+    def __init__(self, model_name: str, init_weights: bool = True) -> None:
         super(TorchModel, self).__init__()
         self.config = AutoConfig.from_pretrained(model_name)
         self.xlm_roberta = AutoModel.from_pretrained(model_name, config=self.config)
         self.qa_outputs = nn.Linear(self.config.hidden_size, 2)
-        self._init_weights(self.qa_outputs)
+        if init_weights:
+            self._init_weights(self.qa_outputs)
 
-    def _init_weights(self, module) -> None:
+    def _init_weights(self, module: nn.Linear) -> None:
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
@@ -121,13 +122,7 @@ class TorchModel(nn.Module):
 
 class TTSModel(TorchModel):
     def __init__(self, model_name: str) -> None:
-        super(TTSModel, self).__init__(model_name)
-        remove_attributes = []
-        for key, value in vars(self.xlm_roberta).items():
-            if value is None:
-                remove_attributes.append(key)
-        for key in remove_attributes:
-            delattr(self.xlm_roberta, key)
+        super(TTSModel, self).__init__(model_name, init_weights=False)
 
     def forward(
         self,
