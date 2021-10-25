@@ -79,6 +79,7 @@ class TorchModel(nn.Module):
         torchscript: bool = False
     ) -> None:
         super(TorchModel, self).__init__()
+        self.torchscript = torchscript
         self.config = AutoConfig.from_pretrained(model_name, torchscript=torchscript)
         self.xlm_roberta = AutoModel.from_pretrained(model_name, config=self.config)
         self.qa_outputs = nn.Linear(self.config.hidden_size, 2)
@@ -110,7 +111,10 @@ class TorchModel(nn.Module):
         if start_positions is not None and end_positions is not None:
             loss = self._loss_fn(start_logits, end_logits, start_positions, end_positions)
 
-        return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
+        if self.torchscript:
+            return start_logits, end_logits
+        else:
+            return ModelOutput(start_logits=start_logits, end_logits=end_logits, loss=loss)
 
     def _loss_fn(
         self,
@@ -125,42 +129,22 @@ class TorchModel(nn.Module):
         return total_loss
 
 
-class TTSModel(TorchModel):
-    def __init__(self, model_name: str) -> None:
-        super(TTSModel, self).__init__(
-            model_name,
-            init_weights=False,
-            torchscript=True
-        )
-
-    def forward(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        outputs = self.xlm_roberta(input_ids, attention_mask)
-        sequence_output = outputs[0]
-        qa_logits = self.qa_outputs(sequence_output)
-        start_logits, end_logits = qa_logits.split(1, dim=-1)
-        start_logits = start_logits.squeeze(-1)
-        end_logits = end_logits.squeeze(-1)
-        return start_logits, end_logits
-
-
 def make_model(
     model_name: str,
     model_type: str = "hf",
     model_weights: str = None,
-    device: str = "cuda"
+    device: str = "cuda",
+    torchscript: bool = False
 ) -> nn.Module:
     if model_type == "hf":
-        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+        model = AutoModelForQuestionAnswering.from_pretrained(
+            model_name,
+            torchscript=torchscript
+        )
     elif model_type == "abhishek":
         model = AbhishekModel(model_name)
     elif model_type == "torch":
-        model = TorchModel(model_name)
-    elif model_type == "tts":
-        model = TTSModel(model_name)
+        model = TorchModel(model_name, torchscript=torchscript)
     else:
         raise ValueError(f"{model_type} is not a recognised model type.")
     if model_weights:
