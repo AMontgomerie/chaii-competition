@@ -13,6 +13,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base_model", type=str, required=True)
     parser.add_argument("--data_dir", type=str, default="train_folds_10.csv", required=False)
     parser.add_argument("--device", type=str, default="cuda", required=False)
+    parser.add_argument("--export_type", type=str, default="trace", required=False)
     parser.add_argument("--fold", type=int, required=True)
     parser.add_argument("--model_type", type=str, default="hf", required=False)
     parser.add_argument("--save_dir", type=str, default=".", required=False)
@@ -26,6 +27,7 @@ def export_to_torchscript(
     model_weights: str,
     save_path: str,
     dummy_input: str,
+    export_type: str,
     device: str = "cuda"
 ) -> None:
     model = make_model(
@@ -36,8 +38,13 @@ def export_to_torchscript(
         torchscript=True
     )
     model.eval()
-    traced_model = torch.jit.trace(model, dummy_input)
-    torch.jit.save(traced_model, save_path)
+    if export_type == "trace":
+        ts_model = torch.jit.trace(model, dummy_input)
+    elif export_type == "script":
+        ts_model = torch.script(model)
+    else:
+        raise ValueError(f"Unrecognised export_type: {export_type}.")
+    torch.jit.save(ts_model, save_path)
     print(f"Saved {save_path}")
 
 
