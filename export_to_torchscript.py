@@ -41,7 +41,7 @@ def export_to_torchscript(
     if export_type == "trace":
         ts_model = torch.jit.trace(model, dummy_input)
     elif export_type == "script":
-        ts_model = torch.script(model)
+        ts_model = torch.jit.script(model)
     else:
         raise ValueError(f"Unrecognised export_type: {export_type}.")
     torch.jit.save(ts_model, save_path)
