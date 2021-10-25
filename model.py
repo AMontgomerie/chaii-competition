@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoConfig, AutoModel, AutoModelForQuestionAnswering
 from dataclasses import dataclass
+from typing import Tuple
 
 
 @dataclass
@@ -54,7 +55,7 @@ class AbhishekModel(nn.Module):
         end_logits: torch.Tensor,
         start_positions: torch.Tensor,
         end_positions: torch.Tensor
-    ):
+    ) -> torch.Tensor:
         if len(start_positions.size()) > 1:
             start_positions = start_positions.squeeze(-1)
         if len(end_positions.size()) > 1:
@@ -71,14 +72,14 @@ class AbhishekModel(nn.Module):
 
 
 class TorchModel(nn.Module):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str) -> None:
         super(TorchModel, self).__init__()
         self.config = AutoConfig.from_pretrained(model_name)
         self.xlm_roberta = AutoModel.from_pretrained(model_name, config=self.config)
         self.qa_outputs = nn.Linear(self.config.hidden_size, 2)
         self._init_weights(self.qa_outputs)
 
-    def _init_weights(self, module):
+    def _init_weights(self, module) -> None:
         if isinstance(module, nn.Linear):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
@@ -90,7 +91,7 @@ class TorchModel(nn.Module):
         attention_mask: torch.Tensor,
         start_positions: torch.Tensor = None,
         end_positions: torch.Tensor = None
-    ):
+    ) -> ModelOutput:
         outputs = self.xlm_roberta(input_ids, attention_mask)
         sequence_output = outputs[0]
         qa_logits = self.qa_outputs(sequence_output)
@@ -111,7 +112,7 @@ class TorchModel(nn.Module):
         end_preds: torch.Tensor,
         start_labels: torch.Tensor,
         end_labels: torch.Tensor
-    ):
+    ) -> torch.Tensor:
         start_loss = nn.CrossEntropyLoss(ignore_index=-1)(start_preds, start_labels)
         end_loss = nn.CrossEntropyLoss(ignore_index=-1)(end_preds, end_labels)
         total_loss = (start_loss + end_loss) / 2
@@ -119,14 +120,14 @@ class TorchModel(nn.Module):
 
 
 class TTSModel(TorchModel):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str) -> None:
         super(TTSModel, self).__init__(model_name)
 
     def forward(
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
-    ):
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         outputs = self.xlm_roberta(input_ids, attention_mask)
         sequence_output = outputs[0]
         qa_logits = self.qa_outputs(sequence_output)
