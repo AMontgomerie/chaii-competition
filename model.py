@@ -72,9 +72,14 @@ class AbhishekModel(nn.Module):
 
 
 class TorchModel(nn.Module):
-    def __init__(self, model_name: str, init_weights: bool = True) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        init_weights: bool = True,
+        torchscript: bool = False
+    ) -> None:
         super(TorchModel, self).__init__()
-        self.config = AutoConfig.from_pretrained(model_name)
+        self.config = AutoConfig.from_pretrained(model_name, torchscript=torchscript)
         self.xlm_roberta = AutoModel.from_pretrained(model_name, config=self.config)
         self.qa_outputs = nn.Linear(self.config.hidden_size, 2)
         if init_weights:
@@ -122,7 +127,11 @@ class TorchModel(nn.Module):
 
 class TTSModel(TorchModel):
     def __init__(self, model_name: str) -> None:
-        super(TTSModel, self).__init__(model_name, init_weights=False)
+        super(TTSModel, self).__init__(
+            model_name,
+            init_weights=False,
+            torchscript=True
+        )
 
     def forward(
         self,
