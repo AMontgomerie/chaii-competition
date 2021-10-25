@@ -122,6 +122,12 @@ class TorchModel(nn.Module):
 class TTSModel(TorchModel):
     def __init__(self, model_name: str) -> None:
         super(TTSModel, self).__init__(model_name)
+        remove_attributes = []
+        for key, value in vars(self.xlm_roberta).items():
+            if value is None:
+                remove_attributes.append(key)
+        for key in remove_attributes:
+            delattr(self.xlm_roberta, key)
 
     def forward(
         self,
@@ -131,7 +137,6 @@ class TTSModel(TorchModel):
         outputs = self.xlm_roberta(input_ids, attention_mask)
         sequence_output = outputs[0]
         qa_logits = self.qa_outputs(sequence_output)
-
         start_logits, end_logits = qa_logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
