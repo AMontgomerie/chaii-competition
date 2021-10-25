@@ -28,8 +28,13 @@ def export_to_torchscript(
     dummy_input: str,
     device: str = "cuda"
 ) -> None:
-    model = AutoModelForQuestionAnswering.from_pretrained(base_model, torchscript=True)
-    model = make_model(base_model, model_type, model_weights, device)
+    model = make_model(
+        base_model,
+        model_type,
+        model_weights,
+        device,
+        torchscript=True
+    )
     model.eval()
     traced_model = torch.jit.trace(model, dummy_input)
     torch.jit.save(traced_model, save_path)
