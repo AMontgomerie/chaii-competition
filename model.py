@@ -118,6 +118,25 @@ class TorchModel(nn.Module):
         return total_loss
 
 
+class TTSModel(TorchModel):
+    def __init__(self, model_name: str):
+        super(TTSModel, self).__init__(model_name)
+
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ):
+        outputs = self.xlm_roberta(input_ids, attention_mask)
+        sequence_output = outputs[0]
+        qa_logits = self.qa_outputs(sequence_output)
+
+        start_logits, end_logits = qa_logits.split(1, dim=-1)
+        start_logits = start_logits.squeeze(-1)
+        end_logits = end_logits.squeeze(-1)
+        return start_logits, end_logits
+
+
 def make_model(
     model_name: str,
     model_type: str = "hf",
