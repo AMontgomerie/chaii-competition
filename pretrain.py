@@ -66,6 +66,7 @@ if __name__ == "__main__":
         early_stopping=config.early_stopping,
         fp16=config.fp16,
         accumulation_steps=config.accumulation_steps,
-        dataloader_workers=config.dataloader_workers
+        dataloader_workers=config.dataloader_workers,
+        pretrain=True
     )
     trainer.train()

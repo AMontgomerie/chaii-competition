@@ -56,7 +56,8 @@ class Trainer:
         accumulation_steps: int = 1,
         dataloader_workers: int = 4,
         pad_on_right: bool = True,
-        model_weights: str = None
+        model_weights: str = None,
+        pretrain: bool = False
     ) -> None:
         self.model = make_model(model_name, model_type, model_weights)
         self.model.to("cuda")
@@ -72,7 +73,10 @@ class Trainer:
         self.max_length = max_length
         self.max_answer_length = max_answer_length
         self.doc_stride = doc_stride
-        file_name = f"{model_name.replace('/', '-')}_fold_{fold}.bin"
+        if pretrain:
+            file_name = f"{model_name.replace('/', '-')}_pretrain.bin"
+        else:
+            file_name = f"{model_name.replace('/', '-')}_fold_{fold}.bin"
         self.save_path = os.path.join(save_path, file_name)
         self.best_jaccard = 0
         self.current_jaccard = 0
