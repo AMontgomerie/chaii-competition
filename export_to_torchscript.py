@@ -1,5 +1,5 @@
 import argparse
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+from transformers import AutoTokenizer
 import torch
 import pandas as pd
 from typing import Tuple
