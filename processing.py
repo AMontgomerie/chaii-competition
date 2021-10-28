@@ -1,11 +1,9 @@
-from argparse import Namespace
 import pandas as pd
 import numpy as np
 from datasets import Dataset
 from transformers import AutoTokenizer
 import collections
-from typing import Tuple
-from argparse import Namespace
+from typing import Tuple, List, Mapping, Union
 
 
 def prepare_train_features(
@@ -14,7 +12,7 @@ def prepare_train_features(
     max_length: int = 384,
     doc_stride: int = 128,
     pad_on_right: bool = True
-):
+) -> Mapping[str, List[int]]:
     examples["question"] = [q.lstrip() for q in examples["question"]]
     tokenized_examples = tokenizer(
         examples["question" if pad_on_right else "context"],
@@ -72,7 +70,7 @@ def prepare_validation_features(
     max_length: int = 384,
     doc_stride: int = 128,
     pad_on_right: bool = True
-):
+) -> Mapping[str, List[Union[int, str]]]:
     examples["question"] = [q.lstrip() for q in examples["question"]]
     tokenized_examples = tokenizer(
         examples["question" if pad_on_right else "context"],
@@ -107,7 +105,7 @@ def postprocess_qa_predictions(
     tokenizer: AutoTokenizer,
     n_best_size: int = 20,
     max_answer_length: int = 30
-):
+) -> Mapping[str, List[Union[int, str]]]:
     all_start_logits, all_end_logits = raw_predictions
     example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
     features_per_example = collections.defaultdict(list)
@@ -188,7 +186,7 @@ def convert_answers(r):
     }
 
 
-def filter_pred_strings(prediction_strings):
+def filter_pred_strings(predictions: pd.DataFrame) -> List[str]:
 
     bad_starts = [".", ",", "(", ")", "-", "–",  ",", ";"]
     bad_endings = ["...", "-", "(", ")", "–", ",", ";"]
@@ -200,7 +198,8 @@ def filter_pred_strings(prediction_strings):
     hindi_bc = "ई.पू"
 
     cleaned_preds = []
-    for pred, context in prediction_strings.to_numpy():
+
+    for pred, context in predictions.to_numpy():
         if pred == "":
             cleaned_preds.append(pred)
             continue
@@ -211,8 +210,6 @@ def filter_pred_strings(prediction_strings):
                 pred = pred[:-3]
             else:
                 pred = pred[:-1]
-        if pred.endswith("..."):
-            pred = pred[:-3]
 
         if any([
             pred.endswith(tamil_ad),
