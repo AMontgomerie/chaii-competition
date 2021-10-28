@@ -189,11 +189,18 @@ def convert_answers(r):
 
 
 def filter_pred_strings(prediction_strings):
+
     bad_starts = [".", ",", "(", ")", "-", "–",  ",", ";"]
     bad_endings = ["...", "-", "(", ")", "–", ",", ";"]
-    cleaned_preds = []
 
-    for pred in prediction_strings.to_numpy():
+    tamil_ad = "கி.பி"
+    tamil_bc = "கி.மு"
+    tamil_km = "கி.மீ"
+    hindi_ad = "ई"
+    hindi_bc = "ई.पू"
+
+    cleaned_preds = []
+    for pred, context in prediction_strings.to_numpy():
         if pred == "":
             cleaned_preds.append(pred)
             continue
@@ -204,6 +211,17 @@ def filter_pred_strings(prediction_strings):
                 pred = pred[:-3]
             else:
                 pred = pred[:-1]
+        if pred.endswith("..."):
+            pred = pred[:-3]
+
+        if any([
+            pred.endswith(tamil_ad),
+            pred.endswith(tamil_bc),
+            pred.endswith(tamil_km),
+            pred.endswith(hindi_ad),
+            pred.endswith(hindi_bc)
+        ]) and pred+"." in context:
+            pred = pred+"."
 
         cleaned_preds.append(pred)
 
