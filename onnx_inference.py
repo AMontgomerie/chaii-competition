@@ -75,7 +75,11 @@ if __name__ == "__main__":
         prepare_validation_features,
         batched=True,
         remove_columns=dataset.column_names,
-        fn_kwargs={"tokenizer": tokenizer}
+        fn_kwargs={
+            "tokenizer": tokenizer,
+            "max_length": config.max_length,
+            "doc_stride": config.doc_stride
+        }
     )
     input_dataset = tokenized_dataset.map(
         lambda example: example, remove_columns=['example_id', 'offset_mapping']
