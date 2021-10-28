@@ -50,6 +50,7 @@ if __name__ == "__main__":
         valid_dataset,
         tokenizer,
         model_type=config.model_type,
+        model_weights=config.model_weights,
         learning_rate=config.learning_rate,
         weight_decay=config.weight_decay,
         epochs=config.epochs,
