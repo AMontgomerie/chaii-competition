@@ -111,6 +111,7 @@ if __name__ == "__main__":
         start_logits, end_logits = predict(
             model,
             input_dataset,
+            config.model_type,
             config.batch_size,
             config.dataloader_workers
         )
