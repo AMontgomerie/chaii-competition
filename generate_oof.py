@@ -23,7 +23,13 @@ disable_progress_bar()
 
 
 @torch.no_grad()
-def predict(model: nn.Module, dataset: Dataset, batch_size: int = 64, workers: int = 4) -> np.ndarray:
+def predict(
+    model: nn.Module,
+    dataset: Dataset,
+    model_type: str = "hf",
+    batch_size: int = 64,
+    workers: int = 4
+) -> np.ndarray:
     model.eval()
     dataloader = DataLoader(
         dataset,
@@ -38,8 +44,12 @@ def predict(model: nn.Module, dataset: Dataset, batch_size: int = 64, workers: i
         input_ids = batch["input_ids"].to(config.device)
         attention_mask = batch["attention_mask"].to(config.device)
         output = model(input_ids, attention_mask)
-        start_logits.append(output.start_logits.cpu().numpy())
-        end_logits.append(output.end_logits.cpu().numpy())
+        if model_type == "torchscript":
+            start_logits.append(output[0].cpu().numpy())
+            end_logits.append(output[1].cpu().numpy())
+        else:
+            start_logits.append(output.start_logits.cpu().numpy())
+            end_logits.append(output.end_logits.cpu().numpy())
     return np.vstack(start_logits), np.vstack(end_logits)
 
 
