@@ -94,7 +94,7 @@ if __name__ == "__main__":
         else:
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
         if config.model_type == "torchscript":
-            filename = f"torchscript_{filename}"
+            filename = f"torchscript_{filename.split('.')[0]}.pt"
         checkpoint = os.path.join(config.model_weights_dir, filename)
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
