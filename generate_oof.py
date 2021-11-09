@@ -46,7 +46,7 @@ def predict(model: nn.Module, dataset: Dataset, batch_size: int = 64, workers: i
 def make_model(model_name: str, model_type: str = "hf", model_weights: str = None) -> nn.Module:
     if model_type == "torchscript":
         if model_weights:
-            model = torch.jit.load(f"torchscript_{model_weights}")
+            model = torch.jit.load(model_weights)
         else:
             raise ValueError("trained model weights are required for torschscript models.")
     else:
@@ -93,6 +93,8 @@ if __name__ == "__main__":
             filename = f"{config.base_model.replace('/', '-')}_fold_{fold}.bin"
         else:
             filename = f"{config.model_name.replace('/', '-')}_fold_{fold}.bin"
+        if config.model_type == "torchscript":
+            filename = f"torchscript_{filename}"
         checkpoint = os.path.join(config.model_weights_dir, filename)
         model = make_model(config.base_model, config.model_type, checkpoint)
         model.to(config.device)
