@@ -44,17 +44,23 @@ def predict(model: nn.Module, dataset: Dataset, batch_size: int = 64, workers: i
 
 
 def make_model(model_name: str, model_type: str = "hf", model_weights: str = None) -> nn.Module:
-    if model_type == "hf":
-        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
-    elif model_type == "abhishek":
-        model = AbhishekModel(model_name)
-    elif model_type == "torch":
-        model = TorchModel(model_name)
+    if model_type == "torchscript":
+        if model_weights:
+            model = torch.jit.load(model_weights)
+        else:
+            raise ValueError("trained model weights are required for torschscript models.")
     else:
-        raise ValueError(f"{model_type} is not a recognised model type.")
-    if model_weights:
-        print(f"Loading weights from {model_weights}")
-        model.load_state_dict(torch.load(model_weights))
+        if model_type == "hf":
+            model = AutoModelForQuestionAnswering.from_pretrained(model_name)
+        elif model_type == "abhishek":
+            model = AbhishekModel(model_name)
+        elif model_type == "torch":
+            model = TorchModel(model_name)
+        else:
+            raise ValueError(f"{model_type} is not a recognised model type.")
+        if model_weights:
+            print(f"Loading weights from {model_weights}")
+            model.load_state_dict(torch.load(model_weights))
     return model
 
 
