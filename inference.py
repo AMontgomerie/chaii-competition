@@ -108,10 +108,10 @@ if __name__ == "__main__":
                 (start_logits, end_logits),
                 tokenizer
             )
-            pred_df.to_csv(f"{filename}.csv", index=False)
+            pred_df.to_csv(os.path.join(config.save_dir, f"{filename}.csv"), index=False)
         if config.output_logits:
-            np.save(f"{filename}_start_logits.npy", start_logits)
-            np.save(f"{filename}_end_logits.npy", end_logits)
+            np.save(os.path.join(config.save_dir, f"{filename}_start_logits.npy"), start_logits)
+            np.save(os.path.join(config.save_dir, f"{filename}_end_logits.npy"), end_logits)
         del model
         gc.collect()
         torch.cuda.empty_cache()
