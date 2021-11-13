@@ -11,6 +11,7 @@ from model import make_model
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, required=True)
+    parser.add_argument("--model_name", type=str, default=None, required=False)
     parser.add_argument("--data_dir", type=str, default="train_folds_10.csv", required=False)
     parser.add_argument("--device", type=str, default="cuda", required=False)
     parser.add_argument("--export_type", type=str, default="trace", required=False)
@@ -72,9 +73,10 @@ if __name__ == "__main__":
     train_data = pd.read_csv(config.data_dir)
     example_text = train_data.loc[0].context
     dummy_input = get_dummy_input(config.base_model, example_text, config.device)
+    model_name = config.model_name if config.model_name else config.base_model
     model_weights = os.path.join(
         config.weights_dir,
-        f"{config.base_model.replace('/', '-')}_fold_{config.fold}.bin"
+        f"{model_name.replace('/', '-')}_fold_{config.fold}.bin"
     )
     save_path = os.path.join(
         config.save_dir,
